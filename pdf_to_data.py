@@ -115,7 +115,9 @@ def extract_data_from_file(pdf_path, output_dir, images_dir, start_id=0):
                     with open(image_full_path, "wb") as f:
                         f.write(image_bytes)
                     
-                    image_path = f"/cards/{image_filename}"
+                    
+                    # Use relative path for GitHub Pages compatibility
+                    image_path = f"./cards/{image_filename}"
                 except Exception as e:
                     print(f"Error extracting image on page {i} of {base_name}: {e}")
 
