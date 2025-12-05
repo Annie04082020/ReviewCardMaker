@@ -169,8 +169,8 @@ def main():
     input_path = sys.argv[1]
     
     # Output directories
-    output_dir = os.path.join("frontend", "src", "data")
-    images_dir = os.path.join("frontend", "public", "cards")
+    output_dir = os.path.join("docs", "src", "data")
+    images_dir = os.path.join("docs", "public", "cards")
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(images_dir, exist_ok=True)
 
