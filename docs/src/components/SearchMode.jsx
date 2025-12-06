@@ -20,17 +20,17 @@ const SearchMode = () => {
                 // Check if any line matches
                 const matches = page.content.some(line => line.toLowerCase().includes(lowerQuery));
                 if (matches) {
-                     // Find the specific matching lines for snippet
-                     const matchingLines = page.content.filter(line => line.toLowerCase().includes(lowerQuery));
-                     
-                     newResults.push({
-                         source: file.source,
-                         page: page.page,
-                         title: page.title,
-                         imagePath: page.imagePath,
-                         matches: matchingLines,
-                         fullContent: page.content
-                     });
+                    // Find the specific matching lines for snippet
+                    const matchingLines = page.content.filter(line => line.toLowerCase().includes(lowerQuery));
+
+                    newResults.push({
+                        source: file.source,
+                        page: page.page,
+                        title: page.title,
+                        imagePath: page.imagePath,
+                        matches: matchingLines,
+                        fullContent: page.content
+                    });
                 }
             });
         });
@@ -73,9 +73,9 @@ const SearchMode = () => {
                             <div className="flex flex-col md:flex-row gap-4">
                                 {/* Image Preview */}
                                 <div className="shrink-0">
-                                    <img 
-                                        src={result.imagePath} 
-                                        alt={result.title} 
+                                    <img
+                                        src={result.imagePath}
+                                        alt={result.title}
                                         className="w-full md:w-48 h-auto rounded-lg border border-gray-600 object-contain bg-black"
                                         loading="lazy"
                                     />
@@ -95,7 +95,7 @@ const SearchMode = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Matches Snippet */}
                                     <div className="space-y-1 mb-3">
                                         {result.matches.slice(0, 3).map((match, mIdx) => (
