@@ -3,6 +3,7 @@ import Deck from './components/Deck'
 import Sidebar from './components/Sidebar'
 import QuizMode from './components/QuizMode'
 import StatsMode from './components/StatsMode'
+import SearchMode from './components/SearchMode'
 import './index.css'
 import cardsData from './data/cards.json'
 
@@ -94,11 +95,7 @@ function App() {
             return <StatsMode />
         }
         if (currentMode === 'search') {
-            return (
-                <div className="flex-grow flex items-center justify-center text-white text-xl font-bold">
-                    Search Mode Coming Soon! 🔍
-                </div>
-            )
+            return <SearchMode />
         }
     }
 
