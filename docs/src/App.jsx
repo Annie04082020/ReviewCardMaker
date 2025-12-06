@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Deck from './components/Deck'
 import Sidebar from './components/Sidebar'
 import QuizMode from './components/QuizMode'
+import StatsMode from './components/StatsMode'
 import './index.css'
 import cardsData from './data/cards.json'
 
@@ -69,6 +70,9 @@ function App() {
                     )}
                 </div>
             )
+        }
+        if (currentMode === 'stats') {
+            return <StatsMode />
         }
         if (currentMode === 'search') {
             return (

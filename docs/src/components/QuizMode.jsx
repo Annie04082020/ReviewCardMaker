@@ -107,6 +107,19 @@ const QuizMode = ({ cards, onExit }) => {
     }
 
     if (gameState === 'result') {
+        // Save stats only once when result screen mounts
+        useEffect(() => {
+            const stats = JSON.parse(localStorage.getItem('quiz_stats')) || { gamesPlayed: 0, totalScore: 0, history: [] };
+            stats.gamesPlayed += 1;
+            stats.totalScore += score;
+            stats.history.push({
+                score: score,
+                date: new Date().toISOString(),
+                topic: "Quiz" // Ideally passed as prop
+            });
+            localStorage.setItem('quiz_stats', JSON.stringify(stats));
+        }, []); // Empty dependency array ensures this runs once
+
         return (
             <div className="flex flex-col items-center justify-center p-8 space-y-6 text-center animate-fade-in">
                 <h2 className="text-3xl font-bold text-white">Game Over!</h2>

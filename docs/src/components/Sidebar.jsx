@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Menu, X, BookOpen, Gamepad2, Search, Library } from 'lucide-react';
+import { Menu, X, BookOpen, Gamepad2, Search, Library, BarChart2 } from 'lucide-react';
 
 const Sidebar = ({ topics, currentTopic, onSelectTopic, currentMode, onSelectMode, isOpen, setIsOpen }) => {
 
     const modes = [
         { id: 'review', label: 'Review', icon: BookOpen },
         { id: 'quiz', label: 'Quiz Mode', icon: Gamepad2 },
+        { id: 'stats', label: 'Stats', icon: BarChart2 },
         { id: 'search', label: 'Search', icon: Search },
     ];
 
