@@ -12,7 +12,9 @@
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh; /* Mobile viewport fix */
+  height: 100dvh;
+  overflow: hidden; /* Prevent scrolling on the body */
 }
 
 /* Custom Scrollbar */
