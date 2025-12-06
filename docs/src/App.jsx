@@ -22,8 +22,11 @@ function App() {
     // Extract unique topics
     const topics = [...new Set(cards.map(card => card.source))]
 
-    // Filter cards
-    let filteredCards = cards.filter(card => !card.imagePath.includes('_p0.'));
+    // 1. Get all valid cards suitable for quizzing (no cover pages)
+    const validCards = cards.filter(card => !card.imagePath.includes('_p0.'));
+
+    // 2. Filter for current topic/mode
+    let filteredCards = validCards;
 
     if (currentTopic === "Mistakes") {
         try {
@@ -76,15 +79,17 @@ function App() {
         if (currentMode === 'quiz') {
             return (
                 <div className="flex-grow flex items-center justify-center w-full h-full">
-                    {filteredCards.length >= 4 ? (
-                        <QuizMode cards={filteredCards} topic={currentTopic} />
+                    {/* Allow quiz if we have ANY cards in the filtered deck, provided we have enough TOTAL cards for distractors */}
+                    {filteredCards.length > 0 && validCards.length >= 4 ? (
+                        <QuizMode cards={filteredCards} allCards={validCards} topic={currentTopic} />
                     ) : (
                         <div className="text-center p-8">
                             <h2 className="text-xl font-bold mb-2">Not Enough Cards</h2>
                             <p className="text-gray-400">
-                                {currentTopic === "Mistakes"
-                                    ? "You need at least 4 mistakes to play a 'Mistakes Quiz'."
-                                    : "Please select 'All Cards' or a larger topic to play."}
+                                {filteredCards.length === 0
+                                    ? "No cards available in this deck."
+                                    : "You need at least 4 total cards in the library to play (for distractors)."
+                                }
                             </p>
                         </div>
                     )}

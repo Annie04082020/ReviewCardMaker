@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const QuizMode = ({ cards, topic, onExit }) => {
+const QuizMode = ({ cards, allCards, topic, onExit }) => {
     const [gameState, setGameState] = useState('menu'); // menu, playing, feedback, result
     const [score, setScore] = useState(0);
     const [round, setRound] = useState(1);
@@ -35,12 +35,20 @@ const QuizMode = ({ cards, topic, onExit }) => {
 
     // Start Game
     const startGame = () => {
-        if (!cards || cards.length < 4) {
-            alert("Not enough cards for a quiz! Need at least 4.");
+        // Need at least 4 cards total (library wide) for distractors
+        const distractorSource = allCards || cards;
+
+        if (!distractorSource || distractorSource.length < 4) {
+            alert("Not enough cards in the library to generate options! Need at least 4.");
             return;
         }
 
-        // 1. Shuffle and Create Unique Deck
+        if (!cards || cards.length < 1) {
+            alert("No cards in this deck to test!");
+            return;
+        }
+
+        // 1. Shuffle and Create Unique Deck from the specific topic cards
         const shuffled = [...cards].sort(() => Math.random() - 0.5);
         const selectedDeck = shuffled.slice(0, Math.min(settings.questionCount, cards.length));
         setQuizDeck(selectedDeck);
@@ -51,22 +59,15 @@ const QuizMode = ({ cards, topic, onExit }) => {
         setGameState('playing');
 
         // Pass the first card directly to avoid state delay issues
-        // round 1 = index 0. roundOverride=1.
         generateQuestion(selectedDeck[0], selectedDeck, 1);
     };
 
     // Generate Question (using pre-shuffled deck)
-    // roundOverride: Optional explicit round number (1-based) to use instead of state
     const generateQuestion = (cardOverride = null, deckOverride = null, roundOverride = null) => {
         const activeDeck = deckOverride || quizDeck;
         const currentRound = roundOverride || round;
-        // round 1 -> index 0
         const cardIndex = cardOverride ? 0 : (currentRound - 1);
 
-        // If cardOverride is passed, use it. Else pick from deck at index.
-        // Important: cardOverride logic in previous version was "if override, index 0". 
-        // But really, if override is passed, we just use it.
-        // If NOT passed, we use deck[cardIndex].
         const questionCard = cardOverride || activeDeck[cardIndex];
 
         if (!questionCard) {
@@ -77,7 +78,8 @@ const QuizMode = ({ cards, topic, onExit }) => {
 
         // Generate options (1 correct + 3 distractor)
         const distractors = [];
-        const fullDeck = cards; // Distractors come from the FULL source deck
+        // Distractors come from the FULL library (allCards) if available, to allow small decks
+        const fullDeck = allCards || cards;
 
         while (distractors.length < 3) {
             const idx = Math.floor(Math.random() * fullDeck.length);
@@ -161,7 +163,6 @@ const QuizMode = ({ cards, topic, onExit }) => {
                 const nextRound = round + 1;
                 setRound(nextRound);
                 setGameState('playing');
-                // Pass explicit nextRound so it doesn't rely on stale 'round' state
                 generateQuestion(null, null, nextRound);
             }
         }, 1500);
