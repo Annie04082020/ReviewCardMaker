@@ -5,11 +5,12 @@ A tool to turn PDF slides into interactive flashcards for studying. It extracts 
 ## Features
 
 -   **Automatic Extraction**: Converts PDF slides into flashcards.
+-   **Local PDF Import**: **[NEW]** Drag and drop PDF files directly in the browser to create new decks (saved locally).
 -   **Smart Detection**: Identifies titles and content images, ignoring backgrounds.
--   **Web Interface**: Mobile-friendly, responsive design with smooth animations.
+-   **Web Interface**: Mobile-friendly, responsive design with smooth animations and **Collapsible Sidebar**.
 -   **Review Mode**: Shuffle cards and track your progress.
--   **Quiz Mode**: Test yourself with detailed scoring, speed analysis (Reflex/Thinker), and mistake tracking.
--   **Dictionary Mode**: Searchable plant database extracted from lecture PDFs.
+-   **Quiz Mode**: Test yourself with detailed scoring, speed analysis (Reflex/Thinker), and mistake tracking. Customize length and time limits.
+-   **Dictionary Mode**: Searchable plant database extracted from lecture PDFs. Includes a **Daily Recommendation** feature.
 -   **Stats Dashboard**: Visual analysis of your "Weakest Decks" and improvements over time.
 
 ## Prerequisites
@@ -32,7 +33,7 @@ A tool to turn PDF slides into interactive flashcards for studying. It extracts 
 
 ## Usage
 
-### 1. Generate Cards
+### 1. Generate Cards (Script Method)
 1.  Place your lecture slide PDFs in `pdfs/`.
 2.  Run the card extraction script:
     ```bash
@@ -49,7 +50,12 @@ A tool to turn PDF slides into interactive flashcards for studying. It extracts 
     ```
     This creates `docs/src/data/dictionary.json`.
 
-### 3. Start the App
+### 3. Import PDFs (Browser Method)
+1.  Start the app and click **Import PDF** in the sidebar.
+2.  Drag and drop any PDF file.
+3.  The app will process it instantly and save it as a "Custom Deck".
+
+### 4. Start the App
 1.  Go to the docs directory:
     ```bash
     cd docs
