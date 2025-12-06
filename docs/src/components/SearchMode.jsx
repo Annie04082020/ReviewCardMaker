@@ -26,6 +26,8 @@ const SearchMode = () => {
                      newResults.push({
                          source: file.source,
                          page: page.page,
+                         title: page.title,
+                         imagePath: page.imagePath,
                          matches: matchingLines,
                          fullContent: page.content
                      });
@@ -68,33 +70,53 @@ const SearchMode = () => {
                 ) : (
                     results.map((result, idx) => (
                         <div key={idx} className="bg-gray-800/50 border border-gray-700 rounded-xl p-5 hover:bg-gray-800 transition-colors">
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-bold text-lg text-purple-300 flex items-center gap-2">
-                                    <FileText size={16} />
-                                    {result.source}
-                                </h3>
-                                <span className="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300">Page {result.page}</span>
-                            </div>
-                            
-                            {/* Matches Snippet */}
-                            <div className="space-y-1 mb-3">
-                                {result.matches.slice(0, 3).map((match, mIdx) => (
-                                    <p key={mIdx} className="text-sm text-yellow-100 bg-yellow-900/20 p-1 rounded">
-                                        "...{match}..."
-                                    </p>
-                                ))}
-                                {result.matches.length > 3 && (
-                                    <p className="text-xs text-gray-500">+{result.matches.length - 3} more matches</p>
-                                )}
-                            </div>
-
-                            {/* Full Context Expand (Optional - for now just show content) */}
-                            <details className="mt-2 text-sm text-gray-400">
-                                <summary className="cursor-pointer hover:text-white transition-colors select-none">Show Full Page Context</summary>
-                                <div className="mt-2 p-3 bg-gray-900/50 rounded-lg whitespace-pre-wrap leading-relaxed">
-                                    {result.fullContent.join('\n')}
+                            <div className="flex flex-col md:flex-row gap-4">
+                                {/* Image Preview */}
+                                <div className="shrink-0">
+                                    <img 
+                                        src={result.imagePath} 
+                                        alt={result.title} 
+                                        className="w-full md:w-48 h-auto rounded-lg border border-gray-600 object-contain bg-black"
+                                        loading="lazy"
+                                    />
                                 </div>
-                            </details>
+
+                                {/* Text Content */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h3 className="font-bold text-xl text-purple-300 truncate pr-2">
+                                                {result.title || "Page " + result.page}
+                                            </h3>
+                                            <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                                <FileText size={12} />
+                                                <span className="truncate">{result.source}</span>
+                                                <span className="bg-gray-700 px-1.5 py-0.5 rounded text-gray-300">Pg {result.page}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Matches Snippet */}
+                                    <div className="space-y-1 mb-3">
+                                        {result.matches.slice(0, 3).map((match, mIdx) => (
+                                            <p key={mIdx} className="text-sm text-yellow-100 bg-yellow-900/20 p-1 rounded font-mono">
+                                                "...{match}..."
+                                            </p>
+                                        ))}
+                                        {result.matches.length > 3 && (
+                                            <p className="text-xs text-gray-500">+{result.matches.length - 3} more matches</p>
+                                        )}
+                                    </div>
+
+                                    {/* Full Context Expand */}
+                                    <details className="mt-2 text-sm text-gray-400">
+                                        <summary className="cursor-pointer hover:text-white transition-colors select-none">Show Full Page Text</summary>
+                                        <div className="mt-2 p-3 bg-gray-900/50 rounded-lg whitespace-pre-wrap leading-relaxed">
+                                            {result.fullContent.join('\n')}
+                                        </div>
+                                    </details>
+                                </div>
+                            </div>
                         </div>
                     ))
                 )}
