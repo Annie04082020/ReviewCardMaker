@@ -5,53 +5,97 @@ const QuizMode = ({ cards, topic, onExit }) => {
     const [gameState, setGameState] = useState('menu'); // menu, playing, feedback, result
     const [score, setScore] = useState(0);
     const [round, setRound] = useState(1);
-    const [timeLeft, setTimeLeft] = useState(10);
+    const [timeLeft, setTimeLeft] = useState(15);
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [options, setOptions] = useState([]);
     const [selectedOption, setSelectedOption] = useState(null);
     const [isCorrect, setIsCorrect] = useState(false);
 
+    // Settings
+    const [settings, setSettings] = useState({
+        questionCount: 10,
+        timeLimit: 15
+    });
+
+    // The shuffled deck for the current game (ensures no repeats)
+    const [quizDeck, setQuizDeck] = useState([]);
+
     // Detailed Session Tracking
     const [sessionHistory, setSessionHistory] = useState([]);
 
-    const TOTAL_ROUNDS = 10;
-    const TIME_LIMIT = 15;
+    // Initialize Settings when cards change
+    useEffect(() => {
+        if (cards && cards.length > 0) {
+            setSettings(prev => ({
+                ...prev,
+                questionCount: Math.min(10, cards.length)
+            }));
+        }
+    }, [cards]);
 
     // Start Game
     const startGame = () => {
-        setScore(0);
-        setRound(1);
-        setSessionHistory([]);
-        setGameState('playing');
-        generateQuestion();
-    };
-
-    // Generate Question
-    const generateQuestion = () => {
         if (!cards || cards.length < 4) {
             alert("Not enough cards for a quiz! Need at least 4.");
             return;
         }
 
-        const questionIdx = Math.floor(Math.random() * cards.length);
-        const questionCard = cards[questionIdx];
+        // 1. Shuffle and Create Unique Deck
+        const shuffled = [...cards].sort(() => Math.random() - 0.5);
+        const selectedDeck = shuffled.slice(0, Math.min(settings.questionCount, cards.length));
+        setQuizDeck(selectedDeck);
+
+        setScore(0);
+        setRound(1);
+        setSessionHistory([]);
+        setGameState('playing');
+
+        // Pass the first card directly to avoid state delay issues
+        // round 1 = index 0. roundOverride=1.
+        generateQuestion(selectedDeck[0], selectedDeck, 1);
+    };
+
+    // Generate Question (using pre-shuffled deck)
+    // roundOverride: Optional explicit round number (1-based) to use instead of state
+    const generateQuestion = (cardOverride = null, deckOverride = null, roundOverride = null) => {
+        const activeDeck = deckOverride || quizDeck;
+        const currentRound = roundOverride || round;
+        // round 1 -> index 0
+        const cardIndex = cardOverride ? 0 : (currentRound - 1);
+
+        // If cardOverride is passed, use it. Else pick from deck at index.
+        // Important: cardOverride logic in previous version was "if override, index 0". 
+        // But really, if override is passed, we just use it.
+        // If NOT passed, we use deck[cardIndex].
+        const questionCard = cardOverride || activeDeck[cardIndex];
+
+        if (!questionCard) {
+            console.error("No question card found!", currentRound, activeDeck.length);
+            setGameState('result');
+            return;
+        }
 
         // Generate options (1 correct + 3 distractor)
         const distractors = [];
+        const fullDeck = cards; // Distractors come from the FULL source deck
+
         while (distractors.length < 3) {
-            const idx = Math.floor(Math.random() * cards.length);
-            if (idx !== questionIdx && !distractors.includes(idx)) {
-                distractors.push(idx);
+            const idx = Math.floor(Math.random() * fullDeck.length);
+            const distractor = fullDeck[idx];
+
+            // Ensure unique distractors and not the target answer
+            if (distractor.title !== questionCard.title && !distractors.some(d => d.title === distractor.title)) {
+                distractors.push(distractor);
             }
         }
 
-        const optionCards = [...distractors.map(i => cards[i]), questionCard];
+        const optionCards = [...distractors, questionCard];
         // Shuffle options
         const shuffledOptions = optionCards.sort(() => Math.random() - 0.5);
 
         setCurrentQuestion(questionCard);
         setOptions(shuffledOptions);
-        setTimeLeft(TIME_LIMIT);
+        setTimeLeft(settings.timeLimit);
         setSelectedOption(null);
         setIsCorrect(false);
     };
@@ -72,7 +116,7 @@ const QuizMode = ({ cards, topic, onExit }) => {
         const correct = option && option.title === currentQuestion.title;
         setIsCorrect(correct);
 
-        const timeTaken = TIME_LIMIT - timeLeft;
+        const timeTaken = settings.timeLimit - timeLeft;
         const points = correct ? (10 + Math.ceil(timeLeft / 2)) : 0;
         if (correct) {
             setScore(score + points);
@@ -80,17 +124,14 @@ const QuizMode = ({ cards, topic, onExit }) => {
 
         // --- Mistake Tracking Logic ---
         const mistakes = JSON.parse(localStorage.getItem('quiz_mistakes')) || [];
+        const cardId = currentQuestion.imagePath;
+
         if (!correct) {
-            // Add to mistakes if not already there
-            if (!mistakes.includes(currentQuestion.id)) {
-                mistakes.push(currentQuestion.id);
+            if (!mistakes.includes(cardId)) {
+                mistakes.push(cardId);
             }
         } else {
-            // Remove from mistakes if correct
-            const index = mistakes.indexOf(currentQuestion.id);
-            // ONLY remove if we are not in "Mistakes" mode (to prevent deck shrinking while playing)
-            // Or maybe we DO want to shrink it? User said "Self-Correction" earlier.
-            // Let's remove it to show progress.
+            const index = mistakes.indexOf(cardId);
             if (index > -1) {
                 mistakes.splice(index, 1);
             }
@@ -114,20 +155,21 @@ const QuizMode = ({ cards, topic, onExit }) => {
 
         // Next round after delay
         setTimeout(() => {
-            if (round >= TOTAL_ROUNDS) {
+            if (round >= settings.questionCount) {
                 setGameState('result');
             } else {
-                setRound(round + 1);
+                const nextRound = round + 1;
+                setRound(nextRound);
                 setGameState('playing');
-                generateQuestion();
+                // Pass explicit nextRound so it doesn't rely on stale 'round' state
+                generateQuestion(null, null, nextRound);
             }
-        }, 2000);
+        }, 1500);
     };
 
     // Save stats when game ends
     useEffect(() => {
         if (gameState === 'result') {
-            // 1. General Stats
             const stats = JSON.parse(localStorage.getItem('quiz_stats')) || { gamesPlayed: 0, totalScore: 0, history: [] };
             stats.gamesPlayed += 1;
             stats.totalScore += score;
@@ -135,32 +177,68 @@ const QuizMode = ({ cards, topic, onExit }) => {
             stats.history.push({
                 score: score,
                 date: new Date().toISOString(),
-                topic: topic || "Mixed", // Use the passed prop
+                topic: topic || "Mixed",
                 details: sessionHistory
             });
             localStorage.setItem('quiz_stats', JSON.stringify(stats));
-
-            // 2. Save Last Session Details (for Stats Table)
             localStorage.setItem('last_session_details', JSON.stringify(sessionHistory));
         }
-    }, [gameState]); // Only run when entering result state
+    }, [gameState]);
 
     if (gameState === 'menu') {
         return (
-            <div className="flex flex-col items-center justify-center p-8 space-y-6 text-center">
-                <h2 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500">
-                    Quiz Challenge
-                </h2>
-                <div className="bg-gray-800/50 p-6 rounded-2xl backdrop-blur-sm border border-gray-700">
-                    <p className="text-xl text-gray-300 mb-2">10 Questions • Speed Bonus</p>
-                    <p className="text-gray-500">Identify the plant from the photo.</p>
+            <div className="flex flex-col items-center justify-center p-8 space-y-8 text-center w-full max-w-2xl bg-gray-800/50 rounded-3xl border border-gray-700 shadow-2xl backdrop-blur-sm m-auto">
+                <div className="space-y-2">
+                    <h2 className="text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
+                        Quiz Challenge
+                    </h2>
+                    <p className="text-gray-400 text-lg">Test your knowledge</p>
                 </div>
-                <button
-                    onClick={startGame}
-                    className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-full text-white font-bold text-lg shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105"
-                >
-                    Start Game
-                </button>
+
+                {/* Settings Controls */}
+                <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
+                        <label className="text-gray-300 text-sm font-bold uppercase tracking-wider">Length</label>
+                        <div className="flex items-center justify-between">
+                            <button
+                                onClick={() => setSettings(s => ({ ...s, questionCount: Math.max(1, s.questionCount - 1) }))}
+                                className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
+                            >-</button>
+                            <span className="text-3xl font-mono font-bold text-white">{settings.questionCount}</span>
+                            <button
+                                onClick={() => setSettings(s => ({ ...s, questionCount: Math.min(cards.length, s.questionCount + 1) }))}
+                                className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
+                            >+</button>
+                        </div>
+                        <p className="text-xs text-gray-500">questions</p>
+                    </div>
+
+                    <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
+                        <label className="text-gray-300 text-sm font-bold uppercase tracking-wider">Timer</label>
+                        <div className="flex items-center justify-between">
+                            <button
+                                onClick={() => setSettings(s => ({ ...s, timeLimit: Math.max(5, s.timeLimit - 5) }))}
+                                className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
+                            >-</button>
+                            <span className="text-3xl font-mono font-bold text-white">{settings.timeLimit}</span>
+                            <button
+                                onClick={() => setSettings(s => ({ ...s, timeLimit: Math.min(60, s.timeLimit + 5) }))}
+                                className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
+                            >+</button>
+                        </div>
+                        <p className="text-xs text-gray-500">seconds / q</p>
+                    </div>
+                </div>
+
+                <div className="w-full pt-4">
+                    <button
+                        onClick={startGame}
+                        className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-2xl text-white font-bold text-2xl shadow-lg shadow-blue-500/20 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                        Start Quiz
+                    </button>
+                    <p className="text-xs text-gray-500 mt-4"> Deck size: {cards ? cards.length : 0} cards available</p>
+                </div>
             </div>
         );
     }
@@ -173,60 +251,71 @@ const QuizMode = ({ cards, topic, onExit }) => {
                     {score}
                 </div>
                 <p className="text-gray-400">Final Score</p>
-                <button
-                    onClick={startGame}
-                    className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium"
-                >
-                    Play Again
-                </button>
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => setGameState('menu')}
+                        className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium"
+                    >
+                        Menu
+                    </button>
+                    <button
+                        onClick={startGame}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white font-medium"
+                    >
+                        Play Again
+                    </button>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="w-full max-w-4xl h-full flex flex-col p-4">
+        <div className="w-full max-w-6xl h-full flex flex-col p-4">
             {/* Header */}
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 bg-gray-900/50 p-4 rounded-xl border border-gray-700">
                 <div className="flex flex-col">
-                    <span className="text-xs text-gray-500 uppercase">Question</span>
-                    <span className="text-xl font-bold text-white max-w-[150px] sm:max-w-none">{round} / {TOTAL_ROUNDS}</span>
+                    <span className="text-xs text-gray-500 uppercase font-bold">Progress</span>
+                    <span className="text-xl font-bold text-white">{round} <span className="text-gray-500">/ {settings.questionCount}</span></span>
                 </div>
                 <div className="flex flex-col items-center">
-                    <span className={`text-2xl font-mono font-bold ${timeLeft < 5 ? 'text-red-500' : 'text-blue-400'}`}>
-                        {timeLeft}s
+                    <span className={`text-4xl font-mono font-black ${timeLeft < 5 ? 'text-red-500 animate-pulse' : 'text-blue-400'}`}>
+                        {timeLeft}
                     </span>
                 </div>
                 <div className="flex flex-col items-end">
-                    <span className="text-xs text-gray-500 uppercase">Score</span>
+                    <span className="text-xs text-gray-500 uppercase font-bold">Score</span>
                     <span className="text-xl font-bold text-yellow-500">{score}</span>
                 </div>
             </div>
 
             {/* Quiz Content */}
-            <div className="flex-1 flex flex-col md:flex-row gap-6 items-center justify-center">
+            <div className="flex-1 flex flex-col lg:flex-row gap-8 items-center justify-center w-full">
 
                 {/* Image (Question) */}
-                <div className="flex-1 w-full max-w-md aspect-video md:aspect-auto md:h-80 bg-black rounded-xl overflow-hidden shadow-2xl ring-1 ring-gray-700">
+                <div className="flex-1 w-full max-w-2xl aspect-video lg:h-[500px] bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-gray-700 relative group">
                     <img
                         src={currentQuestion.imagePath}
                         alt="Quiz Question"
                         className="w-full h-full object-contain"
                     />
+                    <div className="absolute top-4 right-4 bg-black/50 backdrop-blur px-3 py-1 rounded text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        source: {currentQuestion.source}
+                    </div>
                 </div>
 
                 {/* Options */}
-                <div className="flex-1 w-full max-w-md flex flex-col gap-3">
+                <div className="w-full lg:w-1/3 flex flex-col gap-4">
                     {options.map((option, idx) => {
                         let btnClass = "bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-200";
 
                         // Feedback State Styling
                         if (gameState === 'feedback') {
                             if (option.title === currentQuestion.title) {
-                                btnClass = "bg-green-600 border-green-500 text-white ring-2 ring-green-400/50";
+                                btnClass = "bg-green-600 border-green-500 text-white ring-4 ring-green-500/20";
                             } else if (option === selectedOption) {
                                 btnClass = "bg-red-600 border-red-500 text-white";
                             } else {
-                                btnClass = "bg-gray-800 opacity-50";
+                                btnClass = "bg-gray-800 opacity-30";
                             }
                         }
 
@@ -236,11 +325,12 @@ const QuizMode = ({ cards, topic, onExit }) => {
                                 disabled={gameState === 'feedback'}
                                 onClick={() => handleAnswer(option)}
                                 className={`
-                                    w-full p-4 rounded-xl text-left border transition-all duration-200
+                                    w-full p-6 rounded-2xl text-left border-2 transition-all duration-200 shadow-lg
                                     ${btnClass}
+                                    ${gameState !== 'feedback' ? 'hover:-translate-y-1 hover:shadow-xl active:translate-y-0' : ''}
                                 `}
                             >
-                                <span className="text-sm font-medium">{option.title}</span>
+                                <span className="text-lg font-bold">{option.title}</span>
                             </button>
                         );
                     })}
@@ -251,16 +341,16 @@ const QuizMode = ({ cards, topic, onExit }) => {
             <AnimatePresence>
                 {gameState === 'feedback' && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
+                        initial={{ opacity: 0, scale: 0.8, y: 50 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
                         className={`
-                            absolute bottom-10 left-1/2 transform -translate-x-1/2 
-                            px-6 py-2 rounded-full font-bold shadow-xl
-                            ${isCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}
+                            fixed bottom-12 left-1/2 transform -translate-x-1/2 
+                            px-8 py-4 rounded-2xl font-black text-2xl shadow-2xl z-50 backdrop-blur-md border border-white/10
+                            ${isCorrect ? 'bg-green-500/90 text-white' : 'bg-red-500/90 text-white'}
                         `}
                     >
-                        {isCorrect ? 'Correct! +Score' : 'Wrong!'}
+                        {isCorrect ? 'Correct! 🎉' : 'Oops! ❌'}
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -269,4 +359,3 @@ const QuizMode = ({ cards, topic, onExit }) => {
 };
 
 export default QuizMode;
-
