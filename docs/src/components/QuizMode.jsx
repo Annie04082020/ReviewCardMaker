@@ -61,6 +61,52 @@ const QuizMode = ({ cards, onExit }) => {
             handleAnswer(null); // Time out
         }
     }, [timeLeft, gameState]);
+
+    // Handle Answer
+    const handleAnswer = (option) => {
+        setSelectedOption(option);
+        const correct = option && option.title === currentQuestion.title;
+        setIsCorrect(correct);
+
+        if (correct) {
+            setScore(score + 10 + Math.ceil(timeLeft / 2)); // Bonus for speed
+        }
+
+        setGameState('feedback');
+
+        // Next round after delay
+        setTimeout(() => {
+            if (round >= TOTAL_ROUNDS) {
+                setGameState('result');
+            } else {
+                setRound(round + 1);
+                setGameState('playing');
+                generateQuestion();
+            }
+        }, 2000);
+    };
+
+    // Save stats when game ends
+    useEffect(() => {
+        if (gameState === 'result') {
+            const stats = JSON.parse(localStorage.getItem('quiz_stats')) || { gamesPlayed: 0, totalScore: 0, history: [] };
+            stats.gamesPlayed += 1;
+            stats.totalScore += score;
+            stats.history.push({
+                score: score,
+                date: new Date().toISOString(),
+                topic: "Quiz"
+            });
+            localStorage.setItem('quiz_stats', JSON.stringify(stats));
+        }
+    }, [gameState, score]);
+
+    if (gameState === 'menu') {
+        return (
+            <div className="flex flex-col items-center justify-center p-8 space-y-6 text-center">
+                <h2 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500">
+                    Quiz Challenge
+                </h2>
                 <div className="bg-gray-800/50 p-6 rounded-2xl backdrop-blur-sm border border-gray-700">
                     <p className="text-xl text-gray-300 mb-2">10 Questions • Speed Bonus</p>
                     <p className="text-gray-500">Identify the plant from the photo.</p>
@@ -69,86 +115,113 @@ const QuizMode = ({ cards, onExit }) => {
                     onClick={startGame}
                     className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-full text-white font-bold text-lg shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105"
                 >
-                <span className="text-xs text-gray-500 uppercase">Question</span>
-                <span className="text-xl font-bold text-white max-w-[150px] sm:max-w-none">{round} / {TOTAL_ROUNDS}</span>
+                    Start Game
+                </button>
             </div>
-            <div className="flex flex-col items-center">
-                <span className={`text-2xl font-mono font-bold ${timeLeft < 5 ? 'text-red-500' : 'text-blue-400'}`}>
-                    {timeLeft}s
-                </span>
-            </div>
-            <div className="flex flex-col items-end">
-                <span className="text-xs text-gray-500 uppercase">Score</span>
-                <span className="text-xl font-bold text-yellow-500">{score}</span>
-            </div>
-        </div >
+        );
+    }
 
-    {/* Quiz Content */ }
-    < div className = "flex-1 flex flex-col md:flex-row gap-6 items-center justify-center" >
-
-        {/* Image (Question) */ }
-        < div className = "flex-1 w-full max-w-md aspect-video md:aspect-auto md:h-80 bg-black rounded-xl overflow-hidden shadow-2xl ring-1 ring-gray-700" >
-            <img
-                src={currentQuestion.imagePath}
-                alt="Quiz Question"
-                className="w-full h-full object-contain"
-            />
-            </div >
-
-    {/* Options */ }
-    < div className = "flex-1 w-full max-w-md flex flex-col gap-3" >
-    {
-        options.map((option, idx) => {
-            let btnClass = "bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-200";
-
-            // Feedback State Styling
-            if (gameState === 'feedback') {
-                if (option.title === currentQuestion.title) {
-                    btnClass = "bg-green-600 border-green-500 text-white ring-2 ring-green-400/50";
-                } else if (option === selectedOption) {
-                    btnClass = "bg-red-600 border-red-500 text-white";
-                } else {
-                    btnClass = "bg-gray-800 opacity-50";
-                }
-            }
-
-            return (
+    if (gameState === 'result') {
+        return (
+            <div className="flex flex-col items-center justify-center p-8 space-y-6 text-center animate-fade-in">
+                <h2 className="text-3xl font-bold text-white">Game Over!</h2>
+                <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500">
+                    {score}
+                </div>
+                <p className="text-gray-400">Final Score</p>
                 <button
-                    key={idx}
-                    disabled={gameState === 'feedback'}
-                    onClick={() => handleAnswer(option)}
-                    className={`
+                    onClick={startGame}
+                    className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium"
+                >
+                    Play Again
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-full max-w-4xl h-full flex flex-col p-4">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex flex-col">
+                    <span className="text-xs text-gray-500 uppercase">Question</span>
+                    <span className="text-xl font-bold text-white max-w-[150px] sm:max-w-none">{round} / {TOTAL_ROUNDS}</span>
+                </div>
+                <div className="flex flex-col items-center">
+                    <span className={`text-2xl font-mono font-bold ${timeLeft < 5 ? 'text-red-500' : 'text-blue-400'}`}>
+                        {timeLeft}s
+                    </span>
+                </div>
+                <div className="flex flex-col items-end">
+                    <span className="text-xs text-gray-500 uppercase">Score</span>
+                    <span className="text-xl font-bold text-yellow-500">{score}</span>
+                </div>
+            </div>
+
+            {/* Quiz Content */}
+            <div className="flex-1 flex flex-col md:flex-row gap-6 items-center justify-center">
+
+                {/* Image (Question) */}
+                <div className="flex-1 w-full max-w-md aspect-video md:aspect-auto md:h-80 bg-black rounded-xl overflow-hidden shadow-2xl ring-1 ring-gray-700">
+                    <img
+                        src={currentQuestion.imagePath}
+                        alt="Quiz Question"
+                        className="w-full h-full object-contain"
+                    />
+                </div>
+
+                {/* Options */}
+                <div className="flex-1 w-full max-w-md flex flex-col gap-3">
+                    {options.map((option, idx) => {
+                        let btnClass = "bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-200";
+
+                        // Feedback State Styling
+                        if (gameState === 'feedback') {
+                            if (option.title === currentQuestion.title) {
+                                btnClass = "bg-green-600 border-green-500 text-white ring-2 ring-green-400/50";
+                            } else if (option === selectedOption) {
+                                btnClass = "bg-red-600 border-red-500 text-white";
+                            } else {
+                                btnClass = "bg-gray-800 opacity-50";
+                            }
+                        }
+
+                        return (
+                            <button
+                                key={idx}
+                                disabled={gameState === 'feedback'}
+                                onClick={() => handleAnswer(option)}
+                                className={`
                                     w-full p-4 rounded-xl text-left border transition-all duration-200
                                     ${btnClass}
                                 `}
-                >
-                    <span className="text-sm font-medium">{option.title}</span>
-                </button>
-            );
-        })
-    }
-            </div >
-        </div >
+                            >
+                                <span className="text-sm font-medium">{option.title}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
 
-    {/* Feedback Overlay Message */ }
-    < AnimatePresence >
-    { gameState === 'feedback' && (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className={`
+            {/* Feedback Overlay Message */}
+            <AnimatePresence>
+                {gameState === 'feedback' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        className={`
                             absolute bottom-10 left-1/2 transform -translate-x-1/2 
                             px-6 py-2 rounded-full font-bold shadow-xl
                             ${isCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}
                         `}
-        >
-            {isCorrect ? 'Correct! +Score' : 'Wrong!'}
-        </motion.div>
-    )}
-        </AnimatePresence >
-    </div >
-);
+                    >
+                        {isCorrect ? 'Correct! +Score' : 'Wrong!'}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
 };
 
 export default QuizMode;
