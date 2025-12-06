@@ -22,9 +22,18 @@ function App() {
     const topics = [...new Set(cards.map(card => card.source))]
 
     // Filter cards
-    const filteredCards = currentTopic === "All"
-        ? cards
-        : cards.filter(card => card.source === currentTopic)
+    let filteredCards = cards;
+    if (currentTopic === "Mistakes") {
+        try {
+            const mistakes = JSON.parse(localStorage.getItem('quiz_mistakes')) || [];
+            filteredCards = cards.filter(card => mistakes.includes(card.id));
+        } catch (e) {
+            console.error("Error parsing mistakes", e);
+            filteredCards = [];
+        }
+    } else if (currentTopic !== "All") {
+        filteredCards = cards.filter(card => card.source === currentTopic);
+    }
 
     if (loading) {
         return (
@@ -52,7 +61,12 @@ function App() {
                     {filteredCards.length > 0 ? (
                         <Deck key={currentTopic} cards={filteredCards} />
                     ) : (
-                        <div className="text-gray-500">No cards in this topic</div>
+                        <div className="text-gray-500 text-center">
+                            <p className="text-xl mb-2">No cards in this topic</p>
+                            {currentTopic === "Mistakes" && (
+                                <p className="text-sm">Great job! You haven't made any mistakes yet (or you fixed them all).</p>
+                            )}
+                        </div>
                     )}
                 </div>
             )
@@ -65,7 +79,11 @@ function App() {
                     ) : (
                         <div className="text-center p-8">
                             <h2 className="text-xl font-bold mb-2">Not Enough Cards</h2>
-                            <p className="text-gray-400">Please select "All Cards" or a larger topic to play.</p>
+                            <p className="text-gray-400">
+                                {currentTopic === "Mistakes"
+                                    ? "You need at least 4 mistakes to play a 'Mistakes Quiz'."
+                                    : "Please select 'All Cards' or a larger topic to play."}
+                            </p>
                         </div>
                     )}
                 </div>

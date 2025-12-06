@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, BookOpen, Gamepad2, Search, Library, BarChart2 } from 'lucide-react';
+import { Menu, X, BookOpen, Gamepad2, Search, Library, BarChart2, AlertCircle } from 'lucide-react';
 
 const Sidebar = ({ topics, currentTopic, onSelectTopic, currentMode, onSelectMode, isOpen, setIsOpen }) => {
 
@@ -98,6 +98,23 @@ const Sidebar = ({ topics, currentTopic, onSelectTopic, currentMode, onSelectMod
                                     <Library size={20} />
                                     <span>All Cards</span>
                                 </button>
+
+                                <button
+                                    onClick={() => {
+                                        onSelectTopic("Mistakes");
+                                        setIsOpen(false);
+                                    }}
+                                    className={`
+                                        w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors
+                                        ${currentTopic === "Mistakes"
+                                            ? 'bg-red-600/20 text-red-400'
+                                            : 'text-gray-400 hover:bg-gray-800 hover:text-white'}
+                                    `}
+                                >
+                                    <AlertCircle size={20} />
+                                    <span>My Mistakes</span>
+                                </button>
+
                                 {topics.map((topic) => (
                                     <button
                                         key={topic}

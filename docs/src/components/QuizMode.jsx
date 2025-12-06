@@ -11,6 +11,9 @@ const QuizMode = ({ cards, onExit }) => {
     const [selectedOption, setSelectedOption] = useState(null);
     const [isCorrect, setIsCorrect] = useState(false);
 
+    // Detailed Session Tracking
+    const [sessionHistory, setSessionHistory] = useState([]);
+
     const TOTAL_ROUNDS = 10;
     const TIME_LIMIT = 15;
 
@@ -18,6 +21,7 @@ const QuizMode = ({ cards, onExit }) => {
     const startGame = () => {
         setScore(0);
         setRound(1);
+        setSessionHistory([]);
         setGameState('playing');
         generateQuestion();
     };
@@ -68,9 +72,38 @@ const QuizMode = ({ cards, onExit }) => {
         const correct = option && option.title === currentQuestion.title;
         setIsCorrect(correct);
 
+        const points = correct ? (10 + Math.ceil(timeLeft / 2)) : 0;
         if (correct) {
-            setScore(score + 10 + Math.ceil(timeLeft / 2)); // Bonus for speed
+            setScore(score + points);
         }
+
+        // --- Mistake Tracking Logic ---
+        const mistakes = JSON.parse(localStorage.getItem('quiz_mistakes')) || [];
+        if (!correct) {
+            // Add to mistakes if not already there
+            if (!mistakes.includes(currentQuestion.id)) {
+                mistakes.push(currentQuestion.id);
+            }
+        } else {
+            // Remove from mistakes if correct
+            const index = mistakes.indexOf(currentQuestion.id);
+            if (index > -1) {
+                mistakes.splice(index, 1);
+            }
+        }
+        localStorage.setItem('quiz_mistakes', JSON.stringify(mistakes));
+        // -----------------------------
+
+        // --- Detailed History Logic ---
+        setSessionHistory(prev => [...prev, {
+            question: currentQuestion.title,
+            image: currentQuestion.imagePath,
+            source: currentQuestion.source,
+            isCorrect: correct,
+            selected: option ? option.title : "Time Out",
+            points: points
+        }]);
+        // ------------------------------
 
         setGameState('feedback');
 
@@ -89,17 +122,28 @@ const QuizMode = ({ cards, onExit }) => {
     // Save stats when game ends
     useEffect(() => {
         if (gameState === 'result') {
+            // 1. General Stats
             const stats = JSON.parse(localStorage.getItem('quiz_stats')) || { gamesPlayed: 0, totalScore: 0, history: [] };
             stats.gamesPlayed += 1;
             stats.totalScore += score;
+
+            // Get majority topic
+            const sources = sessionHistory.map(h => h.source);
+            const topicMode = sources.sort((a, b) =>
+                sources.filter(v => v === a).length - sources.filter(v => v === b).length
+            ).pop();
+
             stats.history.push({
                 score: score,
                 date: new Date().toISOString(),
-                topic: "Quiz"
+                topic: topicMode || "Mixed"
             });
             localStorage.setItem('quiz_stats', JSON.stringify(stats));
+
+            // 2. Save Last Session Details (for Stats Table)
+            localStorage.setItem('last_session_details', JSON.stringify(sessionHistory));
         }
-    }, [gameState, score]);
+    }, [gameState]); // Only run when entering result state
 
     if (gameState === 'menu') {
         return (
