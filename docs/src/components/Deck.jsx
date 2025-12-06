@@ -35,7 +35,7 @@ const Deck = ({ cards }) => {
     if (!cards || cards.length === 0) return null
 
     return (
-        <div className="flex flex-col items-center gap-8 w-full max-w-2xl h-full justify-center">
+        <div className="flex flex-col items-center gap-8 w-full max-w-[95%] h-full justify-center">
 
             {/* Swipeable Area */}
             <div className="relative w-full aspect-video flex items-center justify-center">
@@ -73,7 +73,7 @@ const Deck = ({ cards }) => {
                         dragConstraints={{ left: 0, right: 0 }}
                         dragElastic={1}
                         onDragEnd={handleDragEnd}
-                        className="absolute w-full h-full cursor-grab active:cursor-grabbing"
+                        className="absolute w-full h-full cursor-grab active:cursor-grabbing flex items-center justify-center"
                     >
                         <Card card={cards[currentIndex]} />
                     </motion.div>
