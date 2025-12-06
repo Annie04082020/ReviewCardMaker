@@ -1,33 +1,86 @@
 import { useState } from 'react'
 import Card from './Card'
 import { ChevronLeft, ChevronRight, Shuffle } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const Deck = ({ cards }) => {
     const [currentIndex, setCurrentIndex] = useState(0)
+    const [direction, setDirection] = useState(0)
 
     const nextCard = () => {
+        setDirection(1)
         setCurrentIndex((prev) => (prev + 1) % cards.length)
     }
 
     const prevCard = () => {
+        setDirection(-1)
         setCurrentIndex((prev) => (prev - 1 + cards.length) % cards.length)
     }
 
     const shuffleDeck = () => {
-        // Simple shuffle just to jump to a random card for now, 
-        // or we could actually reorder the array. 
-        // Let's just jump to random.
         const randomIndex = Math.floor(Math.random() * cards.length)
+        setDirection(1)
         setCurrentIndex(randomIndex)
+    }
+
+    const handleDragEnd = (event, info) => {
+        // Threshold for swipe
+        if (info.offset.x < -100) {
+            nextCard()
+        } else if (info.offset.x > 100) {
+            prevCard()
+        }
     }
 
     if (!cards || cards.length === 0) return null
 
     return (
-        <div className="flex flex-col items-center gap-8 w-full">
-            <Card card={cards[currentIndex]} />
+        <div className="flex flex-col items-center gap-8 w-full max-w-2xl h-full justify-center">
 
-            <div className="flex items-center gap-6 bg-gray-800 p-4 rounded-full shadow-lg border border-gray-700">
+            {/* Swipeable Area */}
+            <div className="relative w-full aspect-video flex items-center justify-center">
+                <AnimatePresence initial={false} mode="wait" custom={direction}>
+                    <motion.div
+                        key={currentIndex}
+                        custom={direction}
+                        variants={{
+                            enter: (direction) => ({
+                                x: direction > 0 ? 300 : -300,
+                                opacity: 0,
+                                scale: 0.8
+                            }),
+                            center: {
+                                zIndex: 1,
+                                x: 0,
+                                opacity: 1,
+                                scale: 1
+                            },
+                            exit: (direction) => ({
+                                zIndex: 0,
+                                x: direction < 0 ? 300 : -300,
+                                opacity: 0,
+                                scale: 0.8
+                            })
+                        }}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{
+                            x: { type: "spring", stiffness: 300, damping: 30 },
+                            opacity: { duration: 0.2 }
+                        }}
+                        drag="x"
+                        dragConstraints={{ left: 0, right: 0 }}
+                        dragElastic={1}
+                        onDragEnd={handleDragEnd}
+                        className="absolute w-full h-full cursor-grab active:cursor-grabbing"
+                    >
+                        <Card card={cards[currentIndex]} />
+                    </motion.div>
+                </AnimatePresence>
+            </div>
+
+            <div className="flex items-center gap-6 bg-gray-800 p-4 rounded-full shadow-lg border border-gray-700 z-10">
                 <button
                     onClick={prevCard}
                     className="p-2 hover:bg-gray-700 rounded-full transition-colors text-white"
