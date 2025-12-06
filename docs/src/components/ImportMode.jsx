@@ -4,8 +4,10 @@ import { set as setIDB, get as getIDB } from 'idb-keyval';
 import { Upload, FileText, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 
 // Configure PDF.js worker
-// Use a CDN for the worker to avoid complex bundler configuration issues in Vite
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Use explicit import with ?url to let Vite bundle it as a separate file
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const ImportMode = () => {
     const [isDragging, setIsDragging] = useState(false);
