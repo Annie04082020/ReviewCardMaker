@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const QuizMode = ({ cards, onExit }) => {
+const QuizMode = ({ cards, topic, onExit }) => {
     const [gameState, setGameState] = useState('menu'); // menu, playing, feedback, result
     const [score, setScore] = useState(0);
     const [round, setRound] = useState(1);
@@ -72,6 +72,7 @@ const QuizMode = ({ cards, onExit }) => {
         const correct = option && option.title === currentQuestion.title;
         setIsCorrect(correct);
 
+        const timeTaken = TIME_LIMIT - timeLeft;
         const points = correct ? (10 + Math.ceil(timeLeft / 2)) : 0;
         if (correct) {
             setScore(score + points);
@@ -87,6 +88,9 @@ const QuizMode = ({ cards, onExit }) => {
         } else {
             // Remove from mistakes if correct
             const index = mistakes.indexOf(currentQuestion.id);
+            // ONLY remove if we are not in "Mistakes" mode (to prevent deck shrinking while playing)
+            // Or maybe we DO want to shrink it? User said "Self-Correction" earlier.
+            // Let's remove it to show progress.
             if (index > -1) {
                 mistakes.splice(index, 1);
             }
@@ -101,7 +105,8 @@ const QuizMode = ({ cards, onExit }) => {
             source: currentQuestion.source,
             isCorrect: correct,
             selected: option ? option.title : "Time Out",
-            points: points
+            points: points,
+            timeTaken: timeTaken
         }]);
         // ------------------------------
 
@@ -126,16 +131,11 @@ const QuizMode = ({ cards, onExit }) => {
             const stats = JSON.parse(localStorage.getItem('quiz_stats')) || { gamesPlayed: 0, totalScore: 0, history: [] };
             stats.gamesPlayed += 1;
             stats.totalScore += score;
-            // Get majority topic
-            const sources = sessionHistory.map(h => h.source);
-            const topicMode = sources.sort((a, b) =>
-                sources.filter(v => v === a).length - sources.filter(v => v === b).length
-            ).pop();
 
             stats.history.push({
                 score: score,
                 date: new Date().toISOString(),
-                topic: topicMode || "Mixed",
+                topic: topic || "Mixed", // Use the passed prop
                 details: sessionHistory
             });
             localStorage.setItem('quiz_stats', JSON.stringify(stats));

@@ -76,7 +76,7 @@ function App() {
             return (
                 <div className="flex-grow flex items-center justify-center w-full h-full">
                     {filteredCards.length >= 4 ? (
-                        <QuizMode cards={filteredCards} />
+                        <QuizMode cards={filteredCards} topic={currentTopic} />
                     ) : (
                         <div className="text-center p-8">
                             <h2 className="text-xl font-bold mb-2">Not Enough Cards</h2>

@@ -155,32 +155,50 @@ const StatsMode = () => {
                                     <tr>
                                         <th className="px-6 py-3">Question</th>
                                         <th className="px-6 py-3 text-center">Result</th>
+                                        <th className="px-6 py-3 text-right">Time</th>
                                         <th className="px-6 py-3 text-right">Points</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-700">
-                                    {displayDetails.map((row, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-700/50 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-white max-w-[200px]">
-                                                <div className="truncate" title={row.question}>{row.question}</div>
-                                                <div className="text-xs text-gray-500 truncate">{row.source}</div>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                {row.isCorrect ? (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-800">
-                                                        Correct
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/50 text-red-400 border border-red-800">
-                                                        Wrong
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 text-right font-mono text-white">
-                                                +{row.points}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {displayDetails.map((row, idx) => {
+                                        // Find fastest/slowest correct answers in this set
+                                        const correctAnswers = displayDetails.filter(d => d.isCorrect);
+                                        const fastestTime = Math.min(...correctAnswers.map(d => d.timeTaken || 999));
+                                        const slowestTime = Math.max(...correctAnswers.map(d => d.timeTaken || 0));
+
+                                        const isFastest = row.isCorrect && row.timeTaken === fastestTime;
+                                        const isSlowest = row.isCorrect && row.timeTaken === slowestTime;
+
+                                        return (
+                                            <tr key={idx} className="hover:bg-gray-700/50 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-white max-w-[200px]">
+                                                    <div className="truncate" title={row.question}>{row.question}</div>
+                                                    <div className="text-xs text-gray-500 truncate">{row.source}</div>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    {row.isCorrect ? (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-800">
+                                                            Correct
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/50 text-red-400 border border-red-800">
+                                                            Wrong
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {isFastest && <span title="Fastest Answer" className="text-yellow-400">⚡</span>}
+                                                        {isSlowest && <span title="Deep Thinker" className="text-blue-400">🧠</span>}
+                                                        <span>{row.timeTaken ? `${row.timeTaken}s` : '-'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right font-mono text-white">
+                                                    +{row.points}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         ) : (
