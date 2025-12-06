@@ -22,17 +22,18 @@ function App() {
     const topics = [...new Set(cards.map(card => card.source))]
 
     // Filter cards
-    let filteredCards = cards;
+    let filteredCards = cards.filter(card => !card.imagePath.includes('_p0.'));
+
     if (currentTopic === "Mistakes") {
         try {
             const mistakes = JSON.parse(localStorage.getItem('quiz_mistakes')) || [];
-            filteredCards = cards.filter(card => mistakes.includes(card.id));
+            filteredCards = filteredCards.filter(card => mistakes.includes(card.id));
         } catch (e) {
             console.error("Error parsing mistakes", e);
             filteredCards = [];
         }
     } else if (currentTopic !== "All") {
-        filteredCards = cards.filter(card => card.source === currentTopic);
+        filteredCards = filteredCards.filter(card => card.source === currentTopic);
     }
 
     if (loading) {

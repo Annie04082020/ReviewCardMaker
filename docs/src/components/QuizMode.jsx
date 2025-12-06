@@ -126,7 +126,6 @@ const QuizMode = ({ cards, onExit }) => {
             const stats = JSON.parse(localStorage.getItem('quiz_stats')) || { gamesPlayed: 0, totalScore: 0, history: [] };
             stats.gamesPlayed += 1;
             stats.totalScore += score;
-
             // Get majority topic
             const sources = sessionHistory.map(h => h.source);
             const topicMode = sources.sort((a, b) =>
@@ -136,7 +135,8 @@ const QuizMode = ({ cards, onExit }) => {
             stats.history.push({
                 score: score,
                 date: new Date().toISOString(),
-                topic: topicMode || "Mixed"
+                topic: topicMode || "Mixed",
+                details: sessionHistory
             });
             localStorage.setItem('quiz_stats', JSON.stringify(stats));
 
@@ -269,3 +269,4 @@ const QuizMode = ({ cards, onExit }) => {
 };
 
 export default QuizMode;
+
