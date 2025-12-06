@@ -76,7 +76,7 @@ const SearchMode = () => {
                                     <img
                                         src={result.imagePath}
                                         alt={result.title}
-                                        className="w-full md:w-48 h-auto rounded-lg border border-gray-600 object-contain bg-black"
+                                        className="w-full md:w-96 h-auto rounded-lg border border-gray-600 object-contain bg-black"
                                         loading="lazy"
                                     />
                                 </div>
