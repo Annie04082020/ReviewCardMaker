@@ -8,10 +8,13 @@ A tool to turn PDF slides into interactive flashcards for studying. It extracts 
 -   **Smart Detection**: Identifies titles and content images, ignoring backgrounds.
 -   **Web Interface**: Mobile-friendly, responsive design with smooth animations.
 -   **Review Mode**: Shuffle cards and track your progress.
+-   **Quiz Mode**: Test yourself with detailed scoring, speed analysis (Reflex/Thinker), and mistake tracking.
+-   **Dictionary Mode**: Searchable plant database extracted from lecture PDFs.
+-   **Stats Dashboard**: Visual analysis of your "Weakest Decks" and improvements over time.
 
 ## Prerequisites
 
--   **Python 3.x**: For the data extraction script.
+-   **Python 3.x**: For data extraction scripts.
 -   **Node.js**: For the web application.
 
 ## Installation
@@ -23,25 +26,33 @@ A tool to turn PDF slides into interactive flashcards for studying. It extracts 
     ```
 3.  **Install Web App Dependencies**:
     ```bash
-    cd frontend
+    cd docs
     npm install
     ```
 
 ## Usage
 
 ### 1. Generate Cards
-1.  Place your PDF files in a folder (e.g., `pdfs/`).
-2.  Run the extraction script:
+1.  Place your lecture slide PDFs in `pdfs/`.
+2.  Run the card extraction script:
     ```bash
     # Run from the root directory
     python pdf_to_data.py pdfs
     ```
-    This will process all PDFs, extract images to `frontend/public/cards/`, and generate `frontend/src/data/cards.json`.
+    This creates `docs/public/cards/` and `docs/src/data/cards.json`.
 
-### 2. Start the App
-1.  Go to the frontend directory:
+### 2. Generate Dictionary (Optional)
+1.  Place your dictionary/textbook PDFs in `dictionary/`.
+2.  Run the dictionary extraction script:
     ```bash
-    cd frontend
+    python dictionary_to_data.py
+    ```
+    This creates `docs/src/data/dictionary.json`.
+
+### 3. Start the App
+1.  Go to the docs directory:
+    ```bash
+    cd docs
     ```
 2.  Start the local server:
     ```bash
@@ -51,26 +62,19 @@ A tool to turn PDF slides into interactive flashcards for studying. It extracts 
 
 ## Deployment to GitHub Pages
 
-To view this app on your phone, you can host it for free on GitHub Pages.
+To view this app on your phone, deploy it to GitHub Pages using these steps:
 
-1.  **Initialize Git** (if not done):
+1.  **Build the Project**:
     ```bash
+    cd docs
+    npm run build
+    ```
+2.  **Deploy the `dist` folder**:
+    ```bash
+    cd dist
     git init
     git add .
-    git commit -m "Initial commit"
+    git commit -m "Deploy update"
+    git push -f https://github.com/Annie04082020/ReviewCardMaker.git gh-pages
     ```
-2.  **Create a Repository** on GitHub.
-3.  **Link Remote**:
-    ```bash
-    git remote add origin <your-github-repo-url>
-    git branch -M main
-    git push -u origin main
-    ```
-4.  **Deploy**:
-    ```bash
-    cd frontend
-    npm run deploy
-    ```
-    (Note: The `deploy` script handles building and pushing to the `gh-pages` branch).
-
-5.  **Enable Pages**: Go to your GitHub Repository Settings -> Pages, and ensure it's serving from the `gh-pages` branch.
+3.  **Enable Pages**: Go to your GitHub Repository Settings -> Pages, and ensure it's serving from the `gh-pages` branch.
