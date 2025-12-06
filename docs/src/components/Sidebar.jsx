@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, X, BookOpen, Gamepad2, Search, Library, BarChart2, AlertCircle } from 'lucide-react';
+import { Menu, X, BookOpen, Gamepad2, Search, Library, BarChart2, AlertCircle, Upload } from 'lucide-react';
 
 const Sidebar = ({ topics, currentTopic, onSelectTopic, currentMode, onSelectMode, isOpen, setIsOpen }) => {
 
@@ -135,6 +135,23 @@ const Sidebar = ({ topics, currentTopic, onSelectTopic, currentMode, onSelectMod
                             </div>
                         </div>
                     )}
+                </div>
+
+                {/* Import Button */}
+                <div className="p-4 border-t border-gray-800">
+                    <button
+                        onClick={() => {
+                            onSelectMode('import');
+                            setIsOpen(false);
+                        }}
+                        className={`
+                            w-full p-3 rounded-xl flex items-center gap-3 transition-colors 
+                            ${currentMode === 'import' ? 'bg-blue-600 text-white' : 'hover:bg-gray-800 text-gray-300'}
+                        `}
+                    >
+                        <Upload size={20} />
+                        <span className="font-medium">Import PDF</span>
+                    </button>
                 </div>
             </div>
         </>

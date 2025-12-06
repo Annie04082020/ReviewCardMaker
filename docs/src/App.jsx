@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { get as getIDB } from 'idb-keyval'
 import Deck from './components/Deck'
 import Sidebar from './components/Sidebar'
 import QuizMode from './components/QuizMode'
 import StatsMode from './components/StatsMode'
 import SearchMode from './components/SearchMode'
+import ImportMode from './components/ImportMode'
 import './index.css'
 import cardsData from './data/cards.json'
 
@@ -15,8 +17,27 @@ function App() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
     useEffect(() => {
-        setCards(cardsData)
-        setLoading(false)
+        const loadCards = async () => {
+            try {
+                // Load static cards
+                let allCards = [...cardsData];
+
+                // Load custom cards from IndexedDB
+                const customCards = await getIDB('custom_cards');
+                if (customCards && Array.isArray(customCards)) {
+                    allCards = [...allCards, ...customCards];
+                }
+
+                setCards(allCards);
+            } catch (err) {
+                console.error("Failed to load cards", err);
+                setCards(cardsData);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadCards();
     }, [])
 
     // Extract unique topics
@@ -48,12 +69,19 @@ function App() {
         )
     }
 
-    if (cards.length === 0) {
+    // Allow empty cards if in Import mode (so user can import to fix empty state)
+    if (cards.length === 0 && currentMode !== 'import') {
         return (
             <div className="h-screen w-full flex items-center justify-center bg-gray-900 text-white">
                 <div className="text-center">
                     <h1 className="text-2xl font-bold mb-4">No Cards Found</h1>
-                    <p>Please run the python script to generate cards.</p>
+                    <p className="mb-4">Please run the python script or import a PDF.</p>
+                    <button
+                        onClick={() => setCurrentMode('import')}
+                        className="px-4 py-2 bg-blue-600 rounded-lg text-white hover:bg-blue-500"
+                    >
+                        Import PDF
+                    </button>
                 </div>
             </div>
         )
@@ -101,6 +129,9 @@ function App() {
         }
         if (currentMode === 'search') {
             return <SearchMode />
+        }
+        if (currentMode === 'import') {
+            return <ImportMode />
         }
     }
 
