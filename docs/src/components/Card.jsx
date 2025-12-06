@@ -9,7 +9,7 @@ const Card = ({ card }) => {
     }
 
     return (
-        <div className="relative w-full max-w-5xl aspect-video cursor-pointer perspective-1000" onClick={handleFlip}>
+        <div className="relative w-full max-w-[90%] aspect-video cursor-pointer perspective-1000" onClick={handleFlip}>
             <motion.div
                 className="w-full h-full relative preserve-3d"
                 initial={false}

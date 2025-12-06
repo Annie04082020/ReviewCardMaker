@@ -73,7 +73,7 @@ const SearchMode = () => {
 
     return (
         <div className="h-full w-full flex flex-col items-center p-4 md:p-8 overflow-y-auto">
-            <div className="w-full max-w-4xl space-y-8 animate-fade-in pb-20">
+            <div className="w-full max-w-[90%] space-y-8 animate-fade-in pb-20">
 
                 <div className="text-center space-y-2">
                     <h2 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">
@@ -141,10 +141,10 @@ const SearchMode = () => {
                     ) : (
                         results.map((result, idx) => (
                             <div key={idx} className="bg-gray-800/50 border border-gray-700 rounded-xl p-5 hover:bg-gray-800 transition-colors">
-                                <div className="flex flex-col md:flex-row gap-4">
+                                <div className="flex flex-col md:flex-row gap-6">
                                     {/* Image Preview */}
-                                    <div className="shrink-0">
-                                        <div className="md:w-96 aspect-video bg-black rounded-lg overflow-hidden border border-gray-700 relative group">
+                                    <div className="shrink-0 md:w-[45%] lg:w-[40%]">
+                                        <div className="w-full aspect-video bg-black rounded-lg overflow-hidden border border-gray-700 relative group">
                                             <img
                                                 src={result.imagePath}
                                                 alt={`Page ${result.page}`}
@@ -163,27 +163,27 @@ const SearchMode = () => {
                                             </a>
                                         </div>
                                     </div>
-                                    <div className="flex-1 space-y-2">
+                                    <div className="flex-1 space-y-4">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <h3 className="text-xl font-bold text-emerald-400">{result.title}</h3>
-                                                <span className="text-xs text-gray-500">{result.source} • Page {result.page}</span>
+                                                <h3 className="text-2xl font-bold text-emerald-400">{result.title}</h3>
+                                                <span className="text-sm text-gray-500">{result.source} • Page {result.page}</span>
                                             </div>
                                         </div>
 
-                                        <div className="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                                        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
                                             {result.matches.slice(0, 3).map((line, i) => (
-                                                <p key={i} className="text-sm text-gray-300 mb-1 last:mb-0 font-mono">
+                                                <p key={i} className="text-base text-gray-300 mb-2 last:mb-0 font-mono">
                                                     ...{line}...
                                                 </p>
                                             ))}
                                         </div>
 
-                                        <details className="text-sm">
+                                        <details className="text-base">
                                             <summary className="cursor-pointer text-gray-400 hover:text-white transition-colors select-none">
                                                 Show Full Text
                                             </summary>
-                                            <div className="mt-2 text-gray-300 pl-4 border-l-2 border-gray-700 max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                            <div className="mt-2 text-gray-300 pl-4 border-l-2 border-gray-700 max-h-60 overflow-y-auto whitespace-pre-wrap">
                                                 {result.fullContent.join('\n')}
                                             </div>
                                         </details>
