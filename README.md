@@ -5,11 +5,11 @@ A tool to turn PDF slides into interactive flashcards for studying. It extracts 
 ## Features
 
 -   **Automatic Extraction**: Converts PDF slides into flashcards.
--   **Local PDF Import**: **[NEW]** Drag and drop PDF files directly in the browser to create new decks (saved locally).
+-   **Local PDF Import & Management**: **[NEW]** Drag and drop PDF files directly in the browser to create new decks. Manage your library by deleting unwanted decks instantly.
 -   **Smart Detection**: Identifies titles and content images, ignoring backgrounds.
 -   **Web Interface**: Mobile-friendly, responsive design with smooth animations and **Collapsible Sidebar**.
 -   **Review Mode**: Shuffle cards and track your progress.
--   **Quiz Mode**: Test yourself with detailed scoring, speed analysis (Reflex/Thinker), and mistake tracking. Customize length and time limits.
+-   **Quiz Mode**: Test yourself with detailed scoring, speed analysis (Reflex/Thinker), and mistake tracking. Customize settings with **typable inputs** for length and timing.
 -   **Dictionary Mode**: Searchable plant database extracted from lecture PDFs. Includes a **Daily Recommendation** feature.
 -   **Stats Dashboard**: Visual analysis of your "Weakest Decks" and improvements over time.
 
@@ -50,10 +50,10 @@ A tool to turn PDF slides into interactive flashcards for studying. It extracts 
     ```
     This creates `docs/src/data/dictionary.json`.
 
-### 3. Import PDFs (Browser Method)
+### 3. Import and Manage PDFs (Browser Method)
 1.  Start the app and click **Import PDF** in the sidebar.
-2.  Drag and drop any PDF file.
-3.  The app will process it instantly and save it as a "Custom Deck".
+2.  Drag and drop any PDF file to create a deck.
+3.  Scroll down to see your "Local Decks" list, where you can delete decks you no longer need.
 
 ### 4. Start the App
 1.  Go to the docs directory:
