@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { set as setIDB, get as getIDB } from 'idb-keyval';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader, Trash2, Database } from 'lucide-react';
 
 // Configure PDF.js worker
 // Use explicit import with ?url to let Vite bundle it as a separate file
@@ -9,13 +9,55 @@ import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
-const ImportMode = () => {
+const ImportMode = ({ onDeckUpdate }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [progress, setProgress] = useState(0);
     const [status, setStatus] = useState("ideal"); // ideal, success, error
     const [statusMsg, setStatusMsg] = useState("");
-    const [importedCount, setImportCount] = useState(0);
+    const [importCount, setImportCount] = useState(0);
+    const [storedDecks, setStoredDecks] = useState([]);
+
+    // Fetch stored decks on load and after changes
+    const fetchStoredDecks = async () => {
+        const customCards = await getIDB('custom_cards');
+        if (customCards && Array.isArray(customCards)) {
+            // Group by source
+            const deckMap = {};
+            customCards.forEach(card => {
+                deckMap[card.source] = (deckMap[card.source] || 0) + 1;
+            });
+            setStoredDecks(Object.entries(deckMap).map(([name, count]) => ({ name, count })));
+        } else {
+            setStoredDecks([]);
+        }
+    };
+
+    useEffect(() => {
+        fetchStoredDecks();
+    }, []);
+
+    const handleDeleteDeck = async (deckName) => {
+        if (!confirm(`Are you sure you want to delete "${deckName}"?`)) return;
+
+        try {
+            const customCards = await getIDB('custom_cards') || [];
+            const updatedCards = customCards.filter(card => card.source !== deckName);
+            await setIDB('custom_cards', updatedCards);
+
+            setStatus("success");
+            setStatusMsg(`Deleted deck: ${deckName}`);
+
+            // Refresh local list and Global App State
+            fetchStoredDecks();
+            if (onDeckUpdate) onDeckUpdate();
+
+        } catch (error) {
+            console.error("Delete Error:", error);
+            setStatus("error");
+            setStatusMsg("Failed to delete deck");
+        }
+    };
 
     const processFile = async (file) => {
         if (file.type !== 'application/pdf') {
@@ -28,7 +70,6 @@ const ImportMode = () => {
             setProcessing(true);
             setProgress(0);
             setStatus("ideal");
-
             const arrayBuffer = await file.arrayBuffer();
             const loadingTask = pdfjsLib.getDocument(arrayBuffer);
             const pdf = await loadingTask.promise;
@@ -77,19 +118,17 @@ const ImportMode = () => {
             }
 
             // Save to IndexedDB
-            // We append to existing custom cards
             const existing = await getIDB('custom_cards') || [];
             const updated = [...existing, ...newCards];
             await setIDB('custom_cards', updated);
 
-            // Note: We also need to notify App to reload, but standard way is usually window reload 
-            // or providing a callback. For now user can switch modes or we can trigger an event?
-            // LocalStorage trigger is easy if we used LS, but we use IDB. 
-            // We'll just show success and ask user to refresh or switch topics.
-
             setImportCount(newCards.length);
             setStatus("success");
             setStatusMsg(`Successfully imported ${newCards.length} cards from ${file.name}.`);
+
+            // Refresh Decks List and Main App Data
+            fetchStoredDecks();
+            if (onDeckUpdate) onDeckUpdate();
 
         } catch (error) {
             console.error("Import Error:", error);
@@ -117,15 +156,16 @@ const ImportMode = () => {
     };
 
     return (
-        <div className="w-full h-full flex flex-col p-8 items-center justify-center animate-fade-in">
+        <div className="w-full h-full flex flex-col p-8 items-center overflow-y-auto animate-fade-in custom-scrollbar">
             <h2 className="text-3xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-400">
-                Import PDF Deck
+                Deck Management
             </h2>
 
+            {/* Upload Area */}
             <div
                 className={`
-                    w-full max-w-2xl h-80 border-4 border-dashed rounded-3xl flex flex-col items-center justify-center
-                    transition-all duration-300 cursor-pointer relative overflow-hidden
+                    w-full max-w-2xl h-80 border-4 border-dashed rounded-3xl flex flex-col items-center justify-center shrink-0
+                    transition-all duration-300 cursor-pointer relative overflow-hidden mb-12
                     ${isDragging ? 'border-blue-500 bg-blue-500/10 scale-105' : 'border-gray-700 bg-gray-800/50 hover:bg-gray-800 hover:border-gray-500'}
                 `}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -164,9 +204,8 @@ const ImportMode = () => {
                 {status === 'success' && !processing && (
                     <div className="flex flex-col items-center text-green-400 pointer-events-none fade-in">
                         <CheckCircle size={64} className="mb-4" />
-                        <p className="text-xl font-bold">Import Complete!</p>
+                        <p className="text-xl font-bold">Done!</p>
                         <p className="text-gray-300 mt-2">{statusMsg}</p>
-                        <p className="text-sm text-gray-500 mt-4">Refresh the page to see your new deck in "All" or under its filename.</p>
                     </div>
                 )}
 
@@ -179,11 +218,45 @@ const ImportMode = () => {
                 )}
             </div>
 
-            <div className="mt-8 max-w-2xl text-gray-500 text-sm text-center">
-                <p>
-                    <strong>Note:</strong> Imported decks are saved to your browser's internal storage (IndexedDB).
-                    They will persist on this device/browser but won't be visible to others.
-                </p>
+            {/* Manage Decks Section */}
+            <div className="w-full max-w-2xl">
+                <div className="flex items-center gap-3 mb-6">
+                    <Database className="text-gray-400" size={24} />
+                    <h3 className="text-xl font-bold text-gray-200">Your Local Decks</h3>
+                </div>
+
+                {storedDecks.length === 0 ? (
+                    <div className="text-center p-8 bg-gray-800/30 rounded-2xl border border-gray-800 text-gray-500">
+                        No custom decks found. Upload a PDF above to create one.
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {storedDecks.map((deck) => (
+                            <div key={deck.name} className="flex items-center justify-between p-4 bg-gray-800 rounded-xl border border-gray-700 hover:border-gray-500 transition-colors">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-blue-900/50 p-3 rounded-lg text-blue-400">
+                                        <FileText size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-white text-lg">{deck.name}</h4>
+                                        <p className="text-sm text-gray-400">{deck.count} cards</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handleDeleteDeck(deck.name)}
+                                    className="p-3 bg-red-900/20 hover:bg-red-900/50 text-red-400 hover:text-red-200 rounded-lg transition-colors"
+                                    title="Delete Deck"
+                                >
+                                    <Trash2 size={20} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="mt-12 max-w-2xl text-gray-600 text-xs text-center border-t border-gray-800 pt-6">
+                Decks are stored in your browser's IndexedDB. Clearing browser data will remove them.
             </div>
         </div>
     );

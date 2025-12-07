@@ -16,28 +16,29 @@ function App() {
     const [currentMode, setCurrentMode] = useState("review")
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
-    useEffect(() => {
-        const loadCards = async () => {
-            try {
-                // Load static cards
-                let allCards = [...cardsData];
+    const refreshData = async () => {
+        setLoading(true);
+        try {
+            // Load static cards
+            let allCards = [...cardsData];
 
-                // Load custom cards from IndexedDB
-                const customCards = await getIDB('custom_cards');
-                if (customCards && Array.isArray(customCards)) {
-                    allCards = [...allCards, ...customCards];
-                }
-
-                setCards(allCards);
-            } catch (err) {
-                console.error("Failed to load cards", err);
-                setCards(cardsData);
-            } finally {
-                setLoading(false);
+            // Load custom cards from IndexedDB
+            const customCards = await getIDB('custom_cards');
+            if (customCards && Array.isArray(customCards)) {
+                allCards = [...allCards, ...customCards];
             }
-        };
 
-        loadCards();
+            setCards(allCards);
+        } catch (err) {
+            console.error("Failed to load cards", err);
+            setCards(cardsData);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        refreshData();
     }, [])
 
     // Extract unique topics
@@ -131,7 +132,7 @@ function App() {
             return <SearchMode />
         }
         if (currentMode === 'import') {
-            return <ImportMode />
+            return <ImportMode onDeckUpdate={refreshData} />
         }
     }
 
