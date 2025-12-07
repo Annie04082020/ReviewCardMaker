@@ -205,13 +205,29 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                                 onClick={() => setSettings(s => ({ ...s, questionCount: Math.max(1, s.questionCount - 1) }))}
                                 className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
                             >-</button>
-                            <span className="text-3xl font-mono font-bold text-white">{settings.questionCount}</span>
+                            <input
+                                type="number"
+                                className="w-20 bg-transparent text-3xl font-mono font-bold text-white text-center focus:outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors"
+                                value={settings.questionCount}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val)) setSettings(s => ({ ...s, questionCount: val }));
+                                    else if (e.target.value === '') setSettings(s => ({ ...s, questionCount: '' }));
+                                }}
+                                onBlur={() => {
+                                    // Clamp on blur
+                                    let val = settings.questionCount;
+                                    if (val === '' || val < 1) val = 1;
+                                    if (val > cards.length) val = cards.length;
+                                    setSettings(s => ({ ...s, questionCount: val }));
+                                }}
+                            />
                             <button
                                 onClick={() => setSettings(s => ({ ...s, questionCount: Math.min(cards.length, s.questionCount + 1) }))}
                                 className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
                             >+</button>
                         </div>
-                        <p className="text-xs text-gray-500">questions</p>
+                        <p className="text-xs text-gray-500">questions (max: {cards.length})</p>
                     </div>
 
                     <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
@@ -221,9 +237,25 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                                 onClick={() => setSettings(s => ({ ...s, timeLimit: Math.max(5, s.timeLimit - 5) }))}
                                 className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
                             >-</button>
-                            <span className="text-3xl font-mono font-bold text-white">{settings.timeLimit}</span>
+                            <input
+                                type="number"
+                                className="w-20 bg-transparent text-3xl font-mono font-bold text-white text-center focus:outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors"
+                                value={settings.timeLimit}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val)) setSettings(s => ({ ...s, timeLimit: val }));
+                                    else if (e.target.value === '') setSettings(s => ({ ...s, timeLimit: '' }));
+                                }}
+                                onBlur={() => {
+                                    // Clamp on blur
+                                    let val = settings.timeLimit;
+                                    if (val === '' || val < 5) val = 5;
+                                    if (val > 300) val = 300; // Cap at 5 mins
+                                    setSettings(s => ({ ...s, timeLimit: val }));
+                                }}
+                            />
                             <button
-                                onClick={() => setSettings(s => ({ ...s, timeLimit: Math.min(60, s.timeLimit + 5) }))}
+                                onClick={() => setSettings(s => ({ ...s, timeLimit: Math.min(300, s.timeLimit + 5) }))}
                                 className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
                             >+</button>
                         </div>
