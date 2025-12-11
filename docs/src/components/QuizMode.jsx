@@ -383,7 +383,7 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                                     <p className="text-3xl font-mono tracking-[0.5em] text-yellow-400 font-bold break-all">
                                         {currentQuestion.title.split('-')[0].trim().split('').map((char, i) =>
                                             (revealedIndices.includes(i) || char === ' ') ? char : '_'
-                                        ).join('')}
+                                        ).join(' ')}
                                     </p>
                                     <p className="text-xs text-gray-600 mt-2">({currentQuestion.title.split('-')[0].trim().length} letters)</p>
                                 </div>

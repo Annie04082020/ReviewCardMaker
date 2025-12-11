@@ -176,9 +176,13 @@ const StatsMode = () => {
                                                     <div className="text-xs text-gray-500 truncate">{row.source}</div>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
-                                                    {row.isCorrect ? (
+                                                    {row.isCorrect === true ? (
                                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-900/50 text-green-400 border border-green-800">
                                                             Correct
+                                                        </span>
+                                                    ) : row.isCorrect === 'partial' ? (
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/50 text-blue-400 border border-blue-800">
+                                                            Close Call
                                                         </span>
                                                     ) : (
                                                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/50 text-red-400 border border-red-800">
