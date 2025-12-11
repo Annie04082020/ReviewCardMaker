@@ -6,32 +6,37 @@ import { motion, AnimatePresence } from 'framer-motion'
 const Deck = ({ cards }) => {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [direction, setDirection] = useState(0)
+    const [isFlipped, setIsFlipped] = useState(false)
 
     const nextCard = () => {
         setDirection(1)
+        setIsFlipped(false)
         setCurrentIndex((prev) => (prev + 1) % cards.length)
     }
 
     const prevCard = () => {
         setDirection(-1)
+        setIsFlipped(false)
         setCurrentIndex((prev) => (prev - 1 + cards.length) % cards.length)
     }
 
     const shuffleDeck = () => {
         const randomIndex = Math.floor(Math.random() * cards.length)
         setDirection(1)
+        setIsFlipped(false)
         setCurrentIndex(randomIndex)
     }
 
     // Keyboard Navigation
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (e.key === 'ArrowRight' || e.key === ' ') {
-                setDirection(1);
-                setCurrentIndex((prev) => (prev + 1) % cards.length);
+            if (e.key === 'ArrowRight') {
+                nextCard();
             } else if (e.key === 'ArrowLeft') {
-                setDirection(-1);
-                setCurrentIndex((prev) => (prev - 1 + cards.length) % cards.length);
+                prevCard();
+            } else if (e.key === ' ') {
+                e.preventDefault(); // Prevent scrolling
+                setIsFlipped(prev => !prev);
             }
         };
 
@@ -91,7 +96,11 @@ const Deck = ({ cards }) => {
                         onDragEnd={handleDragEnd}
                         className="absolute w-full h-full cursor-grab active:cursor-grabbing flex items-center justify-center"
                     >
-                        <Card card={cards[currentIndex]} />
+                        <Card
+                            card={cards[currentIndex]}
+                            isFlipped={isFlipped}
+                            onFlip={() => setIsFlipped(!isFlipped)}
+                        />
                     </motion.div>
                 </AnimatePresence>
             </div>
@@ -126,6 +135,11 @@ const Deck = ({ cards }) => {
                 >
                     <Shuffle size={20} />
                 </button>
+            </div>
+
+            {/* Hint for Keyboard Users */}
+            <div className="hidden md:block text-xs text-gray-500 font-mono mt-[-10px]">
+                Space: Flip • Arrows: Navigate
             </div>
         </div>
     )

@@ -1,11 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 
-const Card = ({ card }) => {
-    const [isFlipped, setIsFlipped] = useState(false)
+const Card = ({ card, isFlipped: externalIsFlipped, onFlip }) => {
+    const [internalIsFlipped, setInternalIsFlipped] = useState(false)
+
+    // Determine if controlled or uncontrolled
+    const isControlled = externalIsFlipped !== undefined
+    const isFlipped = isControlled ? externalIsFlipped : internalIsFlipped
 
     const handleFlip = () => {
-        setIsFlipped(!isFlipped)
+        if (isControlled) {
+            onFlip?.()
+        } else {
+            setInternalIsFlipped(!internalIsFlipped)
+        }
     }
 
     return (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const QuizMode = ({ cards, allCards, topic, onExit }) => {
@@ -11,21 +11,19 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
     const [selectedOption, setSelectedOption] = useState(null);
     const [isCorrect, setIsCorrect] = useState(false);
 
-    // Settings
+    // Typing Mode State
     const [settings, setSettings] = useState({
         questionCount: 10,
         timeLimit: 15,
         inputMode: 'choice' // 'choice' or 'type'
     });
+    const [attempts, setAttempts] = useState(0);
+    const [clue, setClue] = useState(null);
+    const [typedAnswer, setTypedAnswer] = useState('');
+    const inputRef = useRef(null);
 
     // Detailed Session Tracking
     const [sessionHistory, setSessionHistory] = useState([]);
-
-    // State for Retries (Typing Mode)
-    const [attempts, setAttempts] = useState(0);
-    const [clue, setClue] = useState(null);
-
-    // The shuffled deck for the current game
     const [quizDeck, setQuizDeck] = useState([]);
 
     // Initialize Settings when cards change
@@ -37,6 +35,26 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
             }));
         }
     }, [cards]);
+
+    // Timer Auto-Switch based on Mode
+    useEffect(() => {
+        if (settings.inputMode === 'type') {
+            setSettings(s => ({ ...s, timeLimit: 20 }));
+        } else {
+            setSettings(s => ({ ...s, timeLimit: 15 }));
+        }
+    }, [settings.inputMode]);
+
+    // Auto-Focus Input Logic
+    useEffect(() => {
+        if (gameState === 'playing' && settings.inputMode === 'type') {
+            // Focus on start, next round, or after retry
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 50); // Small delay to ensure render
+            return () => clearTimeout(timer);
+        }
+    }, [gameState, round, attempts, settings.inputMode]);
 
     // Start Game
     const startGame = () => {
@@ -100,8 +118,11 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
         setTimeLeft(settings.timeLimit);
         setSelectedOption(null);
         setIsCorrect(false);
+
+        // Reset Typing State
         setAttempts(0);
         setClue(null);
+        setTypedAnswer('');
     };
 
     // Timer
@@ -130,6 +151,9 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
             const input = option.title.trim().toLowerCase();
             const isMatch = input === target;
 
+            // Clear input for next attempt or next question
+            setTypedAnswer('');
+
             if (isMatch) {
                 // Correct
                 const points = attempts === 0 ? (10 + Math.ceil(timeLeft / 2)) : 5;
@@ -148,7 +172,8 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                         const randomWord = words[Math.floor(Math.random() * words.length)];
                         setClue(randomWord);
                     }
-                    return; // Don't finish question yet
+                    // Focus back on input (handled by effect on 'attempts')
+                    return;
                 } else {
                     // Maximum attempts reached
                     finishQuestion(false, 0);
@@ -177,7 +202,6 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                 mistakes.push(cardId);
             }
         } else {
-            // Remove from mistakes if correct (even partially)
             const index = mistakes.indexOf(cardId);
             if (index > -1) {
                 mistakes.splice(index, 1);
@@ -403,18 +427,19 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                     {settings.inputMode === 'type' ? (
                         <div className="flex flex-col gap-4 w-full">
                             <input
+                                ref={inputRef}
                                 type="text"
                                 placeholder="Type your answer..."
                                 className={`w-full p-4 bg-gray-800 border-2 rounded-2xl text-white text-lg focus:outline-none placeholder-gray-500
                                     ${attempts > 0 ? 'border-red-400/50 animate-shake' : 'border-gray-700 focus:border-blue-500'}
                                  `}
                                 autoFocus
+                                value={typedAnswer}
+                                onChange={(e) => setTypedAnswer(e.target.value)}
                                 disabled={gameState === 'feedback'}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && e.target.value.trim()) {
-                                        const val = e.target.value.trim();
-                                        handleAnswer({ title: val, isTyped: true });
-                                        if (gameState !== 'feedback') e.target.value = '';
+                                    if (e.key === 'Enter' && typedAnswer.trim()) {
+                                        handleAnswer({ title: typedAnswer.trim(), isTyped: true });
                                     }
                                 }}
                             />
