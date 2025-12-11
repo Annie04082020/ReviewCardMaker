@@ -18,8 +18,8 @@ const Card = ({ card }) => {
                 style={{ transformStyle: 'preserve-3d' }}
             >
                 {/* Front of Card (Image + Description) */}
-                <div className="absolute w-full h-full backface-hidden bg-gray-800 rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex">
-                    <div className="w-2/3 h-full bg-black flex items-center justify-center">
+                <div className="absolute w-full h-full backface-hidden bg-gray-800 rounded-xl overflow-hidden shadow-2xl border border-gray-700 flex flex-col md:flex-row">
+                    <div className="w-full h-2/3 md:w-2/3 md:h-full bg-black flex items-center justify-center relative">
                         {card.imagePath ? (
                             <img
                                 src={card.imagePath}
@@ -29,12 +29,18 @@ const Card = ({ card }) => {
                         ) : (
                             <span className="text-gray-500">No Image</span>
                         )}
+                        {/* Mobile Hint Overlay for Image */}
+                        <div className="absolute bottom-2 right-2 md:hidden bg-black/50 text-white text-[10px] px-2 py-1 rounded-full opacity-50">
+                            Image
+                        </div>
                     </div>
-                    <div className="w-1/3 p-6 flex flex-col justify-center bg-gray-800 border-l border-gray-700">
-                        <h3 className="text-sm uppercase tracking-wider text-gray-400 mb-2">Description</h3>
-                        <p className="text-gray-200 text-sm leading-relaxed overflow-y-auto max-h-full">
-                            {card.description || "No description available."}
-                        </p>
+                    <div className="w-full h-1/3 md:w-1/3 md:h-full p-4 md:p-6 flex flex-col justify-center bg-gray-800 border-t md:border-t-0 md:border-l border-gray-700">
+                        <h3 className="text-xs md:text-sm uppercase tracking-wider text-gray-400 mb-1 md:mb-2 font-bold">Description</h3>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            <p className="text-gray-200 text-sm md:text-base leading-relaxed whitespace-pre-wrap">
+                                {card.description || "No description available."}
+                            </p>
+                        </div>
                     </div>
                 </div>
 

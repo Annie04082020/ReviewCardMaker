@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Card from './Card'
 import { ChevronLeft, ChevronRight, Shuffle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -22,6 +22,22 @@ const Deck = ({ cards }) => {
         setDirection(1)
         setCurrentIndex(randomIndex)
     }
+
+    // Keyboard Navigation
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                setDirection(1);
+                setCurrentIndex((prev) => (prev + 1) % cards.length);
+            } else if (e.key === 'ArrowLeft') {
+                setDirection(-1);
+                setCurrentIndex((prev) => (prev - 1 + cards.length) % cards.length);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [cards.length]);
 
     const handleDragEnd = (event, info) => {
         // Threshold for swipe

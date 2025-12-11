@@ -115,7 +115,17 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
     // Handle Answer
     const handleAnswer = (option) => {
         setSelectedOption(option);
-        const correct = option && option.title === currentQuestion.title;
+
+        // Smart Validation for Typed Answers
+        let correct = false;
+        if (option.isTyped) {
+            const target = currentQuestion.title.split('-')[0].trim().toLowerCase();
+            const input = option.title.trim().toLowerCase();
+            correct = input === target;
+        } else {
+            correct = option && option.title === currentQuestion.title;
+        }
+
         setIsCorrect(correct);
 
         const timeTaken = settings.timeLimit - timeLeft;
@@ -197,7 +207,7 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                 </div>
 
                 {/* Settings Controls */}
-                <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
                         <label className="text-gray-300 text-sm font-bold uppercase tracking-wider">Length</label>
                         <div className="flex items-center justify-between">
@@ -215,7 +225,6 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                                     else if (e.target.value === '') setSettings(s => ({ ...s, questionCount: '' }));
                                 }}
                                 onBlur={() => {
-                                    // Clamp on blur
                                     let val = settings.questionCount;
                                     if (val === '' || val < 1) val = 1;
                                     if (val > cards.length) val = cards.length;
@@ -247,10 +256,9 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                                     else if (e.target.value === '') setSettings(s => ({ ...s, timeLimit: '' }));
                                 }}
                                 onBlur={() => {
-                                    // Clamp on blur
                                     let val = settings.timeLimit;
                                     if (val === '' || val < 5) val = 5;
-                                    if (val > 300) val = 300; // Cap at 5 mins
+                                    if (val > 300) val = 300;
                                     setSettings(s => ({ ...s, timeLimit: val }));
                                 }}
                             />
@@ -260,6 +268,28 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                             >+</button>
                         </div>
                         <p className="text-xs text-gray-500">seconds / q</p>
+                    </div>
+
+                    {/* Input Mode Toggle */}
+                    <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
+                        <label className="text-gray-300 text-sm font-bold uppercase tracking-wider">Answer Mode</label>
+                        <div className="flex items-center justify-center h-full">
+                            <div className="bg-gray-800 p-1 rounded-xl flex w-full">
+                                <button
+                                    onClick={() => setSettings(s => ({ ...s, inputMode: 'choice' }))}
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${!settings.inputMode || settings.inputMode === 'choice' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Choices
+                                </button>
+                                <button
+                                    onClick={() => setSettings(s => ({ ...s, inputMode: 'type' }))}
+                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${settings.inputMode === 'type' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Type
+                                </button>
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-500">{settings.inputMode === 'type' ? 'Type the exact answer' : 'Select from 4 options'}</p>
                     </div>
                 </div>
 
@@ -336,37 +366,65 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                     </div>
                 </div>
 
-                {/* Options */}
+                {/* Options / Input */}
                 <div className="w-full lg:w-1/3 flex flex-col gap-4">
-                    {options.map((option, idx) => {
-                        let btnClass = "bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-200";
-
-                        // Feedback State Styling
-                        if (gameState === 'feedback') {
-                            if (option.title === currentQuestion.title) {
-                                btnClass = "bg-green-600 border-green-500 text-white ring-4 ring-green-500/20";
-                            } else if (option === selectedOption) {
-                                btnClass = "bg-red-600 border-red-500 text-white";
-                            } else {
-                                btnClass = "bg-gray-800 opacity-30";
-                            }
-                        }
-
-                        return (
-                            <button
-                                key={idx}
+                    {settings.inputMode === 'type' ? (
+                        <div className="flex flex-col gap-4 w-full">
+                            <input
+                                type="text"
+                                placeholder="Type your answer..."
+                                className="w-full p-4 bg-gray-800 border-2 border-gray-700 rounded-2xl text-white text-lg focus:border-blue-500 focus:outline-none placeholder-gray-500"
+                                autoFocus
                                 disabled={gameState === 'feedback'}
-                                onClick={() => handleAnswer(option)}
-                                className={`
-                                    w-full p-6 rounded-2xl text-left border-2 transition-all duration-200 shadow-lg
-                                    ${btnClass}
-                                    ${gameState !== 'feedback' ? 'hover:-translate-y-1 hover:shadow-xl active:translate-y-0' : ''}
-                                `}
-                            >
-                                <span className="text-lg font-bold">{option.title}</span>
-                            </button>
-                        );
-                    })}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && e.target.value.trim()) {
+                                        // Construct a mock option object to reuse handleAnswer
+                                        const val = e.target.value.trim();
+                                        handleAnswer({ title: val, isTyped: true });
+                                        e.target.value = ''; // Clear input (though we move to feedback anyway)
+                                    }
+                                }}
+                            />
+                            <p className="text-xs text-gray-500 text-center">Press Enter to submit. Word before hyphen matches.</p>
+
+                            {gameState === 'feedback' && (
+                                <div className="mt-4 p-4 bg-gray-800 rounded-xl border border-gray-700">
+                                    <p className="text-xs text-gray-400 uppercase font-bold mb-1">Correct Answer</p>
+                                    <p className="text-xl font-bold text-green-400">{currentQuestion.title}</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        options.map((option, idx) => {
+                            let btnClass = "bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-200";
+
+                            // Feedback State Styling
+                            if (gameState === 'feedback') {
+                                if (option.title === currentQuestion.title) {
+                                    btnClass = "bg-green-600 border-green-500 text-white ring-4 ring-green-500/20";
+                                } else if (option === selectedOption) {
+                                    btnClass = "bg-red-600 border-red-500 text-white";
+                                } else {
+                                    btnClass = "bg-gray-800 opacity-30";
+                                }
+                            }
+
+                            return (
+                                <button
+                                    key={idx}
+                                    disabled={gameState === 'feedback'}
+                                    onClick={() => handleAnswer(option)}
+                                    className={`
+                                        w-full p-6 rounded-2xl text-left border-2 transition-all duration-200 shadow-lg
+                                        ${btnClass}
+                                        ${gameState !== 'feedback' ? 'hover:-translate-y-1 hover:shadow-xl active:translate-y-0' : ''}
+                                    `}
+                                >
+                                    <span className="text-lg font-bold">{option.title}</span>
+                                </button>
+                            );
+                        })
+                    )}
                 </div>
             </div>
 
