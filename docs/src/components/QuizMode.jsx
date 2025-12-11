@@ -18,7 +18,7 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
         inputMode: 'choice' // 'choice' or 'type'
     });
     const [attempts, setAttempts] = useState(0);
-    const [clue, setClue] = useState(null);
+    const [revealedIndices, setRevealedIndices] = useState([]); // Array of indices to reveal
     const [typedAnswer, setTypedAnswer] = useState('');
     const inputRef = useRef(null);
 
@@ -48,30 +48,25 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
     // Auto-Focus Input Logic
     useEffect(() => {
         if (gameState === 'playing' && settings.inputMode === 'type') {
-            // Focus on start, next round, or after retry
             const timer = setTimeout(() => {
                 inputRef.current?.focus();
-            }, 50); // Small delay to ensure render
+            }, 50);
             return () => clearTimeout(timer);
         }
     }, [gameState, round, attempts, settings.inputMode]);
 
     // Start Game
     const startGame = () => {
-        // Need at least 4 cards for distractors in choice mode
         const distractorSource = allCards || cards;
-
         if (settings.inputMode === 'choice' && (!distractorSource || distractorSource.length < 4)) {
             alert("Not enough cards in the library to generate options! Need at least 4.");
             return;
         }
-
         if (!cards || cards.length < 1) {
             alert("No cards in this deck to test!");
             return;
         }
 
-        // Shuffle Deck
         const shuffled = [...cards].sort(() => Math.random() - 0.5);
         const selectedDeck = shuffled.slice(0, Math.min(settings.questionCount, cards.length));
         setQuizDeck(selectedDeck);
@@ -97,7 +92,6 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
             return;
         }
 
-        // Generate options if needed
         let shuffledOptions = [];
         if (settings.inputMode === 'choice') {
             const distractors = [];
@@ -121,7 +115,7 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
 
         // Reset Typing State
         setAttempts(0);
-        setClue(null);
+        setRevealedIndices([]);
         setTypedAnswer('');
     };
 
@@ -131,14 +125,13 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
             const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
             return () => clearTimeout(timer);
         } else if (gameState === 'playing' && timeLeft === 0) {
-            handleAnswer(null); // Time out
+            handleAnswer(null);
         }
     }, [timeLeft, gameState]);
 
     // Handle Answer
     const handleAnswer = (option) => {
         if (!option) {
-            // Timeout
             finishQuestion(false, 0);
             return;
         }
@@ -146,12 +139,11 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
         setSelectedOption(option);
 
         if (settings.inputMode === 'type') {
-            // Typing Mode Logic
-            const target = currentQuestion.title.split('-')[0].trim().toLowerCase();
+            const target = currentQuestion.title.split('-')[0].trim();
+            const targetLower = target.toLowerCase();
             const input = option.title.trim().toLowerCase();
-            const isMatch = input === target;
+            const isMatch = input === targetLower;
 
-            // Clear input for next attempt or next question
             setTypedAnswer('');
 
             if (isMatch) {
@@ -165,22 +157,26 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                 setAttempts(newAttempts);
 
                 if (newAttempts < 3) {
-                    // Retry logic
-                    if (newAttempts === 2) {
-                        // Show Clue on last attempt
-                        const words = currentQuestion.title.split('-')[0].trim().split(' ');
-                        const randomWord = words[Math.floor(Math.random() * words.length)];
-                        setClue(randomWord);
+                    // Generate Clue indices
+                    // We want to show 1 char on first fail (Attempts -> 1)
+                    // We want to show 2 chars on second fail (Attempts -> 2)
+                    const validIndices = target.split('').map((c, i) => c !== ' ' ? i : -1).filter(i => i !== -1);
+                    const needed = newAttempts; // 1 or 2
+                    let current = [...revealedIndices];
+
+                    while (current.length < needed && current.length < validIndices.length) {
+                        const remaining = validIndices.filter(i => !current.includes(i));
+                        if (remaining.length === 0) break;
+                        const randIndex = Math.floor(Math.random() * remaining.length);
+                        current.push(remaining[randIndex]);
                     }
-                    // Focus back on input (handled by effect on 'attempts')
+                    setRevealedIndices(current);
                     return;
                 } else {
-                    // Maximum attempts reached
                     finishQuestion(false, 0);
                 }
             }
         } else {
-            // Choice Mode Logic
             const correct = option.title === currentQuestion.title;
             const points = correct ? (10 + Math.ceil(timeLeft / 2)) : 0;
             setIsCorrect(correct);
@@ -193,7 +189,6 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
             setScore(score + points);
         }
 
-        // Mistake Tracking
         const mistakes = JSON.parse(localStorage.getItem('quiz_mistakes')) || [];
         const cardId = currentQuestion.id || currentQuestion.imagePath || currentQuestion.title;
 
@@ -209,7 +204,6 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
         }
         localStorage.setItem('quiz_mistakes', JSON.stringify(mistakes));
 
-        // History
         setSessionHistory(prev => [...prev, {
             question: currentQuestion.title,
             image: currentQuestion.imagePath,
@@ -234,7 +228,6 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
         }, 1500);
     };
 
-    // Save stats
     useEffect(() => {
         if (gameState === 'result') {
             const stats = JSON.parse(localStorage.getItem('quiz_stats')) || { gamesPlayed: 0, totalScore: 0, history: [] };
@@ -260,16 +253,12 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                     </h2>
                     <p className="text-gray-400 text-lg">Test your knowledge</p>
                 </div>
-
+                {/* Length and Timer Settings remain same */}
                 <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Length Setting */}
                     <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
                         <label className="text-gray-300 text-sm font-bold uppercase tracking-wider">Length</label>
                         <div className="flex items-center justify-between">
-                            <button
-                                onClick={() => setSettings(s => ({ ...s, questionCount: Math.max(1, s.questionCount - 1) }))}
-                                className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
-                            >-</button>
+                            <button onClick={() => setSettings(s => ({ ...s, questionCount: Math.max(1, s.questionCount - 1) }))} className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold">-</button>
                             <input
                                 type="number"
                                 className="w-20 bg-transparent text-3xl font-mono font-bold text-white text-center focus:outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors"
@@ -286,22 +275,15 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                                     setSettings(s => ({ ...s, questionCount: val }));
                                 }}
                             />
-                            <button
-                                onClick={() => setSettings(s => ({ ...s, questionCount: Math.min(cards.length, s.questionCount + 1) }))}
-                                className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
-                            >+</button>
+                            <button onClick={() => setSettings(s => ({ ...s, questionCount: Math.min(cards.length, s.questionCount + 1) }))} className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold">+</button>
                         </div>
                         <p className="text-xs text-gray-500">questions (max: {cards.length})</p>
                     </div>
 
-                    {/* Timer Setting */}
                     <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
                         <label className="text-gray-300 text-sm font-bold uppercase tracking-wider">Timer</label>
                         <div className="flex items-center justify-between">
-                            <button
-                                onClick={() => setSettings(s => ({ ...s, timeLimit: Math.max(5, s.timeLimit - 5) }))}
-                                className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
-                            >-</button>
+                            <button onClick={() => setSettings(s => ({ ...s, timeLimit: Math.max(5, s.timeLimit - 5) }))} className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold">-</button>
                             <input
                                 type="number"
                                 className="w-20 bg-transparent text-3xl font-mono font-bold text-white text-center focus:outline-none border-b-2 border-transparent focus:border-blue-500 transition-colors"
@@ -318,31 +300,17 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                                     setSettings(s => ({ ...s, timeLimit: val }));
                                 }}
                             />
-                            <button
-                                onClick={() => setSettings(s => ({ ...s, timeLimit: Math.min(300, s.timeLimit + 5) }))}
-                                className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold"
-                            >+</button>
+                            <button onClick={() => setSettings(s => ({ ...s, timeLimit: Math.min(300, s.timeLimit + 5) }))} className="w-10 h-10 rounded-full bg-gray-700 hover:bg-gray-600 text-white font-bold">+</button>
                         </div>
                         <p className="text-xs text-gray-500">seconds / q</p>
                     </div>
 
-                    {/* Input Mode Toggle */}
                     <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
                         <label className="text-gray-300 text-sm font-bold uppercase tracking-wider">Answer Mode</label>
                         <div className="flex items-center justify-center h-full">
                             <div className="bg-gray-800 p-1 rounded-xl flex w-full">
-                                <button
-                                    onClick={() => setSettings(s => ({ ...s, inputMode: 'choice' }))}
-                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${!settings.inputMode || settings.inputMode === 'choice' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                                >
-                                    Choices
-                                </button>
-                                <button
-                                    onClick={() => setSettings(s => ({ ...s, inputMode: 'type' }))}
-                                    className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${settings.inputMode === 'type' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                                >
-                                    Type
-                                </button>
+                                <button onClick={() => setSettings(s => ({ ...s, inputMode: 'choice' }))} className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${!settings.inputMode || settings.inputMode === 'choice' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Choices</button>
+                                <button onClick={() => setSettings(s => ({ ...s, inputMode: 'type' }))} className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${settings.inputMode === 'type' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Type</button>
                             </div>
                         </div>
                         <p className="text-xs text-gray-500">{settings.inputMode === 'type' ? 'Type the exact answer' : 'Select from 4 options'}</p>
@@ -350,12 +318,7 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                 </div>
 
                 <div className="w-full pt-4">
-                    <button
-                        onClick={startGame}
-                        className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-2xl text-white font-bold text-2xl shadow-lg shadow-blue-500/20 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                        Start Quiz
-                    </button>
+                    <button onClick={startGame} className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-2xl text-white font-bold text-2xl shadow-lg shadow-blue-500/20 transition-all transform hover:scale-[1.02] active:scale-[0.98]">Start Quiz</button>
                     <p className="text-xs text-gray-500 mt-4"> Deck size: {cards ? cards.length : 0} cards available</p>
                 </div>
             </div>
@@ -366,23 +329,11 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
         return (
             <div className="flex flex-col items-center justify-center p-8 space-y-6 text-center animate-fade-in">
                 <h2 className="text-3xl font-bold text-white">Game Over!</h2>
-                <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500">
-                    {score}
-                </div>
+                <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500">{score}</div>
                 <p className="text-gray-400">Final Score</p>
                 <div className="flex gap-4">
-                    <button
-                        onClick={() => setGameState('menu')}
-                        className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium"
-                    >
-                        Menu
-                    </button>
-                    <button
-                        onClick={startGame}
-                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white font-medium"
-                    >
-                        Play Again
-                    </button>
+                    <button onClick={() => setGameState('menu')} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium">Menu</button>
+                    <button onClick={startGame} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white font-medium">Play Again</button>
                 </div>
             </div>
         );
@@ -390,39 +341,18 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
 
     return (
         <div className="w-full max-w-6xl h-full flex flex-col p-4">
-            {/* Header */}
             <div className="flex justify-between items-center mb-4 bg-gray-900/50 p-4 rounded-xl border border-gray-700">
-                <div className="flex flex-col">
-                    <span className="text-xs text-gray-500 uppercase font-bold">Progress</span>
-                    <span className="text-xl font-bold text-white">{round} <span className="text-gray-500">/ {settings.questionCount}</span></span>
-                </div>
-                <div className="flex flex-col items-center">
-                    <span className={`text-4xl font-mono font-black ${timeLeft < 5 ? 'text-red-500 animate-pulse' : 'text-blue-400'}`}>
-                        {timeLeft}
-                    </span>
-                </div>
-                <div className="flex flex-col items-end">
-                    <span className="text-xs text-gray-500 uppercase font-bold">Score</span>
-                    <span className="text-xl font-bold text-yellow-500">{score}</span>
-                </div>
+                <div className="flex flex-col"><span className="text-xs text-gray-500 uppercase font-bold">Progress</span><span className="text-xl font-bold text-white">{round} <span className="text-gray-500">/ {settings.questionCount}</span></span></div>
+                <div className="flex flex-col items-center"><span className={`text-4xl font-mono font-black ${timeLeft < 5 ? 'text-red-500 animate-pulse' : 'text-blue-400'}`}>{timeLeft}</span></div>
+                <div className="flex flex-col items-end"><span className="text-xs text-gray-500 uppercase font-bold">Score</span><span className="text-xl font-bold text-yellow-500">{score}</span></div>
             </div>
 
-            {/* Quiz Content */}
             <div className="flex-1 flex flex-col lg:flex-row gap-8 items-center justify-center w-full">
-
-                {/* Image (Question) */}
                 <div className="flex-1 w-full max-w-2xl aspect-video lg:h-[500px] bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-gray-700 relative group">
-                    <img
-                        src={currentQuestion.imagePath}
-                        alt="Quiz Question"
-                        className="w-full h-full object-contain"
-                    />
-                    <div className="absolute top-4 right-4 bg-black/50 backdrop-blur px-3 py-1 rounded text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                        source: {currentQuestion.source}
-                    </div>
+                    <img src={currentQuestion.imagePath} alt="Quiz Question" className="w-full h-full object-contain" />
+                    <div className="absolute top-4 right-4 bg-black/50 backdrop-blur px-3 py-1 rounded text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">source: {currentQuestion.source}</div>
                 </div>
 
-                {/* Options / Input */}
                 <div className="w-full lg:w-1/3 flex flex-col gap-4">
                     {settings.inputMode === 'type' ? (
                         <div className="flex flex-col gap-4 w-full">
@@ -430,9 +360,7 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                                 ref={inputRef}
                                 type="text"
                                 placeholder="Type your answer..."
-                                className={`w-full p-4 bg-gray-800 border-2 rounded-2xl text-white text-lg focus:outline-none placeholder-gray-500
-                                    ${attempts > 0 ? 'border-red-400/50 animate-shake' : 'border-gray-700 focus:border-blue-500'}
-                                 `}
+                                className={`w-full p-4 bg-gray-800 border-2 rounded-2xl text-white text-lg focus:outline-none placeholder-gray-500 ${attempts > 0 ? 'border-red-400/50 animate-shake' : 'border-gray-700 focus:border-blue-500'}`}
                                 autoFocus
                                 value={typedAnswer}
                                 onChange={(e) => setTypedAnswer(e.target.value)}
@@ -445,14 +373,19 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                             />
                             <div className="flex justify-between text-xs text-gray-500">
                                 <span>tries: {3 - attempts} left</span>
-                                <span>Word before hyphen matches</span>
+                                <span></span>
                             </div>
 
-                            {/* Clue UI */}
-                            {clue && (
-                                <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-200 text-center animate-fade-in">
-                                    <span className="font-bold text-xs uppercase block text-yellow-500 mb-1">Clue</span>
-                                    <span className="font-mono text-lg tracking-widest">{clue}</span>
+                            {/* Character Clue UI */}
+                            {attempts > 0 && (
+                                <div className="p-4 bg-gray-900 rounded-xl border border-gray-700 text-center animate-fade-in">
+                                    <span className="text-xs text-gray-500 uppercase font-bold tracking-widest block mb-2">{attempts === 2 ? 'Final Clue' : 'Hint'}</span>
+                                    <p className="text-3xl font-mono tracking-[0.5em] text-yellow-400 font-bold break-all">
+                                        {currentQuestion.title.split('-')[0].trim().split('').map((char, i) =>
+                                            (revealedIndices.includes(i) || char === ' ') ? char : '_'
+                                        ).join('')}
+                                    </p>
+                                    <p className="text-xs text-gray-600 mt-2">({currentQuestion.title.split('-')[0].trim().length} letters)</p>
                                 </div>
                             )}
 
@@ -466,8 +399,6 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                     ) : (
                         options.map((option, idx) => {
                             let btnClass = "bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-200";
-
-                            // Feedback State Styling
                             if (gameState === 'feedback') {
                                 if (option.title === currentQuestion.title) {
                                     btnClass = "bg-green-600 border-green-500 text-white ring-4 ring-green-500/20";
@@ -477,18 +408,8 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                                     btnClass = "bg-gray-800 opacity-30";
                                 }
                             }
-
                             return (
-                                <button
-                                    key={idx}
-                                    disabled={gameState === 'feedback'}
-                                    onClick={() => handleAnswer(option)}
-                                    className={`
-                                        w-full p-6 rounded-2xl text-left border-2 transition-all duration-200 shadow-lg
-                                        ${btnClass}
-                                        ${gameState !== 'feedback' ? 'hover:-translate-y-1 hover:shadow-xl active:translate-y-0' : ''}
-                                    `}
-                                >
+                                <button key={idx} disabled={gameState === 'feedback'} onClick={() => handleAnswer(option)} className={`w-full p-6 rounded-2xl text-left border-2 transition-all duration-200 shadow-lg ${btnClass} ${gameState !== 'feedback' ? 'hover:-translate-y-1 hover:shadow-xl active:translate-y-0' : ''}`}>
                                     <span className="text-lg font-bold">{option.title}</span>
                                 </button>
                             );
@@ -497,24 +418,10 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                 </div>
             </div>
 
-            {/* Feedback Overlay Message */}
             <AnimatePresence>
                 {gameState === 'feedback' && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.8, y: 50 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        className={`
-                            fixed bottom-12 left-1/2 transform -translate-x-1/2 
-                            px-8 py-4 rounded-2xl font-black text-2xl shadow-2xl z-50 backdrop-blur-md border border-white/10
-                            ${isCorrect === true ? 'bg-green-500/90 text-white' :
-                                isCorrect === 'partial' ? 'bg-blue-500/90 text-white' :
-                                    'bg-red-500/90 text-white'}
-                        `}
-                    >
-                        {isCorrect === true ? 'Correct! 🎉' :
-                            isCorrect === 'partial' ? 'Close Call! 😅' :
-                                'Oops! ❌'}
+                    <motion.div initial={{ opacity: 0, scale: 0.8, y: 50 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.8 }} className={`fixed bottom-12 left-1/2 transform -translate-x-1/2 px-8 py-4 rounded-2xl font-black text-2xl shadow-2xl z-50 backdrop-blur-md border border-white/10 ${isCorrect === true ? 'bg-green-500/90 text-white' : isCorrect === 'partial' ? 'bg-blue-500/90 text-white' : 'bg-red-500/90 text-white'}`}>
+                        {isCorrect === true ? 'Correct! 🎉' : isCorrect === 'partial' ? 'Close Call! 😅' : 'Oops! ❌'}
                     </motion.div>
                 )}
             </AnimatePresence>
