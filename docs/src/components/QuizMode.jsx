@@ -14,14 +14,19 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
     // Settings
     const [settings, setSettings] = useState({
         questionCount: 10,
-        timeLimit: 15
+        timeLimit: 15,
+        inputMode: 'choice' // 'choice' or 'type'
     });
-
-    // The shuffled deck for the current game (ensures no repeats)
-    const [quizDeck, setQuizDeck] = useState([]);
 
     // Detailed Session Tracking
     const [sessionHistory, setSessionHistory] = useState([]);
+
+    // State for Retries (Typing Mode)
+    const [attempts, setAttempts] = useState(0);
+    const [clue, setClue] = useState(null);
+
+    // The shuffled deck for the current game
+    const [quizDeck, setQuizDeck] = useState([]);
 
     // Initialize Settings when cards change
     useEffect(() => {
@@ -35,10 +40,10 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
 
     // Start Game
     const startGame = () => {
-        // Need at least 4 cards total (library wide) for distractors
+        // Need at least 4 cards for distractors in choice mode
         const distractorSource = allCards || cards;
 
-        if (!distractorSource || distractorSource.length < 4) {
+        if (settings.inputMode === 'choice' && (!distractorSource || distractorSource.length < 4)) {
             alert("Not enough cards in the library to generate options! Need at least 4.");
             return;
         }
@@ -48,7 +53,7 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
             return;
         }
 
-        // 1. Shuffle and Create Unique Deck from the specific topic cards
+        // Shuffle Deck
         const shuffled = [...cards].sort(() => Math.random() - 0.5);
         const selectedDeck = shuffled.slice(0, Math.min(settings.questionCount, cards.length));
         setQuizDeck(selectedDeck);
@@ -56,7 +61,143 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
         setScore(0);
         setRound(1);
         setSessionHistory([]);
-        // Next round after delay
+        setGameState('playing');
+
+        generateQuestion(selectedDeck[0], selectedDeck, 1);
+    };
+
+    // Generate Question
+    const generateQuestion = (cardOverride = null, deckOverride = null, roundOverride = null) => {
+        const activeDeck = deckOverride || quizDeck;
+        const currentRound = roundOverride || round;
+        const cardIndex = cardOverride ? 0 : (currentRound - 1);
+
+        const questionCard = cardOverride || activeDeck[cardIndex];
+
+        if (!questionCard) {
+            setGameState('result');
+            return;
+        }
+
+        // Generate options if needed
+        let shuffledOptions = [];
+        if (settings.inputMode === 'choice') {
+            const distractors = [];
+            const fullDeck = allCards || cards;
+            while (distractors.length < 3) {
+                const idx = Math.floor(Math.random() * fullDeck.length);
+                const distractor = fullDeck[idx];
+                if (distractor.title !== questionCard.title && !distractors.some(d => d.title === distractor.title)) {
+                    distractors.push(distractor);
+                }
+            }
+            const optionCards = [...distractors, questionCard];
+            shuffledOptions = optionCards.sort(() => Math.random() - 0.5);
+        }
+
+        setCurrentQuestion(questionCard);
+        setOptions(shuffledOptions);
+        setTimeLeft(settings.timeLimit);
+        setSelectedOption(null);
+        setIsCorrect(false);
+        setAttempts(0);
+        setClue(null);
+    };
+
+    // Timer
+    useEffect(() => {
+        if (gameState === 'playing' && timeLeft > 0) {
+            const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+            return () => clearTimeout(timer);
+        } else if (gameState === 'playing' && timeLeft === 0) {
+            handleAnswer(null); // Time out
+        }
+    }, [timeLeft, gameState]);
+
+    // Handle Answer
+    const handleAnswer = (option) => {
+        if (!option) {
+            // Timeout
+            finishQuestion(false, 0);
+            return;
+        }
+
+        setSelectedOption(option);
+
+        if (settings.inputMode === 'type') {
+            // Typing Mode Logic
+            const target = currentQuestion.title.split('-')[0].trim().toLowerCase();
+            const input = option.title.trim().toLowerCase();
+            const isMatch = input === target;
+
+            if (isMatch) {
+                // Correct
+                const points = attempts === 0 ? (10 + Math.ceil(timeLeft / 2)) : 5;
+                setIsCorrect(attempts === 0 ? true : 'partial');
+                finishQuestion(true, points);
+            } else {
+                // Wrong
+                const newAttempts = attempts + 1;
+                setAttempts(newAttempts);
+
+                if (newAttempts < 3) {
+                    // Retry logic
+                    if (newAttempts === 2) {
+                        // Show Clue on last attempt
+                        const words = currentQuestion.title.split('-')[0].trim().split(' ');
+                        const randomWord = words[Math.floor(Math.random() * words.length)];
+                        setClue(randomWord);
+                    }
+                    return; // Don't finish question yet
+                } else {
+                    // Maximum attempts reached
+                    finishQuestion(false, 0);
+                }
+            }
+        } else {
+            // Choice Mode Logic
+            const correct = option.title === currentQuestion.title;
+            const points = correct ? (10 + Math.ceil(timeLeft / 2)) : 0;
+            setIsCorrect(correct);
+            finishQuestion(correct, points);
+        }
+    };
+
+    const finishQuestion = (outcomeCorrect, points) => {
+        if (outcomeCorrect) {
+            setScore(score + points);
+        }
+
+        // Mistake Tracking
+        const mistakes = JSON.parse(localStorage.getItem('quiz_mistakes')) || [];
+        const cardId = currentQuestion.id || currentQuestion.imagePath || currentQuestion.title;
+
+        if (!outcomeCorrect) {
+            if (!mistakes.includes(cardId)) {
+                mistakes.push(cardId);
+            }
+        } else {
+            // Remove from mistakes if correct (even partially)
+            const index = mistakes.indexOf(cardId);
+            if (index > -1) {
+                mistakes.splice(index, 1);
+            }
+        }
+        localStorage.setItem('quiz_mistakes', JSON.stringify(mistakes));
+
+        // History
+        setSessionHistory(prev => [...prev, {
+            question: currentQuestion.title,
+            image: currentQuestion.imagePath,
+            source: currentQuestion.source,
+            isCorrect: outcomeCorrect,
+            selected: selectedOption ? selectedOption.title : "Time Out/Fail",
+            points: points,
+            timeTaken: settings.timeLimit - timeLeft
+        }]);
+
+        setGameState('feedback');
+
         setTimeout(() => {
             if (round >= settings.questionCount) {
                 setGameState('result');
@@ -69,13 +210,12 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
         }, 1500);
     };
 
-    // Save stats when game ends
+    // Save stats
     useEffect(() => {
         if (gameState === 'result') {
             const stats = JSON.parse(localStorage.getItem('quiz_stats')) || { gamesPlayed: 0, totalScore: 0, history: [] };
             stats.gamesPlayed += 1;
             stats.totalScore += score;
-
             stats.history.push({
                 score: score,
                 date: new Date().toISOString(),
@@ -97,8 +237,8 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                     <p className="text-gray-400 text-lg">Test your knowledge</p>
                 </div>
 
-                {/* Settings Controls */}
                 <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Length Setting */}
                     <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
                         <label className="text-gray-300 text-sm font-bold uppercase tracking-wider">Length</label>
                         <div className="flex items-center justify-between">
@@ -130,6 +270,7 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                         <p className="text-xs text-gray-500">questions (max: {cards.length})</p>
                     </div>
 
+                    {/* Timer Setting */}
                     <div className="bg-gray-900/50 p-5 rounded-2xl border border-gray-700 flex flex-col gap-3">
                         <label className="text-gray-300 text-sm font-bold uppercase tracking-wider">Timer</label>
                         <div className="flex items-center justify-between">
@@ -257,4 +398,103 @@ const QuizMode = ({ cards, allCards, topic, onExit }) => {
                     </div>
                 </div>
 
-                export default QuizMode;
+                {/* Options / Input */}
+                <div className="w-full lg:w-1/3 flex flex-col gap-4">
+                    {settings.inputMode === 'type' ? (
+                        <div className="flex flex-col gap-4 w-full">
+                            <input
+                                type="text"
+                                placeholder="Type your answer..."
+                                className={`w-full p-4 bg-gray-800 border-2 rounded-2xl text-white text-lg focus:outline-none placeholder-gray-500
+                                    ${attempts > 0 ? 'border-red-400/50 animate-shake' : 'border-gray-700 focus:border-blue-500'}
+                                 `}
+                                autoFocus
+                                disabled={gameState === 'feedback'}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && e.target.value.trim()) {
+                                        const val = e.target.value.trim();
+                                        handleAnswer({ title: val, isTyped: true });
+                                        if (gameState !== 'feedback') e.target.value = '';
+                                    }
+                                }}
+                            />
+                            <div className="flex justify-between text-xs text-gray-500">
+                                <span>tries: {3 - attempts} left</span>
+                                <span>Word before hyphen matches</span>
+                            </div>
+
+                            {/* Clue UI */}
+                            {clue && (
+                                <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-200 text-center animate-fade-in">
+                                    <span className="font-bold text-xs uppercase block text-yellow-500 mb-1">Clue</span>
+                                    <span className="font-mono text-lg tracking-widest">{clue}</span>
+                                </div>
+                            )}
+
+                            {gameState === 'feedback' && (
+                                <div className="mt-4 p-4 bg-gray-800 rounded-xl border border-gray-700">
+                                    <p className="text-xs text-gray-400 uppercase font-bold mb-1">Correct Answer</p>
+                                    <p className="text-xl font-bold text-green-400">{currentQuestion.title}</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        options.map((option, idx) => {
+                            let btnClass = "bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-200";
+
+                            // Feedback State Styling
+                            if (gameState === 'feedback') {
+                                if (option.title === currentQuestion.title) {
+                                    btnClass = "bg-green-600 border-green-500 text-white ring-4 ring-green-500/20";
+                                } else if (option === selectedOption) {
+                                    btnClass = "bg-red-600 border-red-500 text-white";
+                                } else {
+                                    btnClass = "bg-gray-800 opacity-30";
+                                }
+                            }
+
+                            return (
+                                <button
+                                    key={idx}
+                                    disabled={gameState === 'feedback'}
+                                    onClick={() => handleAnswer(option)}
+                                    className={`
+                                        w-full p-6 rounded-2xl text-left border-2 transition-all duration-200 shadow-lg
+                                        ${btnClass}
+                                        ${gameState !== 'feedback' ? 'hover:-translate-y-1 hover:shadow-xl active:translate-y-0' : ''}
+                                    `}
+                                >
+                                    <span className="text-lg font-bold">{option.title}</span>
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+
+            {/* Feedback Overlay Message */}
+            <AnimatePresence>
+                {gameState === 'feedback' && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.8, y: 50 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        className={`
+                            fixed bottom-12 left-1/2 transform -translate-x-1/2 
+                            px-8 py-4 rounded-2xl font-black text-2xl shadow-2xl z-50 backdrop-blur-md border border-white/10
+                            ${isCorrect === true ? 'bg-green-500/90 text-white' :
+                                isCorrect === 'partial' ? 'bg-blue-500/90 text-white' :
+                                    'bg-red-500/90 text-white'}
+                        `}
+                    >
+                        {isCorrect === true ? 'Correct! 🎉' :
+                            isCorrect === 'partial' ? 'Close Call! 😅' :
+                                'Oops! ❌'}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
+export default QuizMode;
